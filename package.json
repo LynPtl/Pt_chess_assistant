@@ -9,7 +9,11 @@
   "scripts": {
     "start": "node src/server.mjs",
     "build": "vite build",
-    "test": "node --test \"test/*.test.mjs\""
+    "test": "node --test \"test/*.test.mjs\"",
+    "sync": "node scripts/sync-assets.mjs",
+    "postinstall": "node scripts/sync-assets.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/sync-assets.mjs"
   },
   "keywords": [],
   "author": "",

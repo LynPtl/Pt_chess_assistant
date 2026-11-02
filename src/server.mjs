@@ -2,6 +2,7 @@ import { appendFileSync, createReadStream, existsSync, mkdirSync, statSync, writ
 import { createServer as createHttpServer } from "node:http";
 import { spawn } from "node:child_process";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
+import { pathToFileURL } from "node:url";
 import { Chess } from "chess.js";
 import { buildPositionPgn } from "./pgn.mjs";
 import { isPlausible } from "./fen.mjs";
@@ -202,5 +203,21 @@ export function createServer(config, deps = {}) {
     }
 
     sendFile(res, file);
+  });
+}
+
+// `npm start` / start.bat entry point. Imported modules (tests) never trigger
+// this, because only the main module satisfies the guard below.
+const invokedAs = process.argv[1] ? pathToFileURL(process.argv[1]).href : null;
+if (invokedAs === import.meta.url) {
+  const { loadConfig } = await import("./config.mjs");
+  const config = loadConfig();
+  createServer(config).listen(config.port, "127.0.0.1", () => {
+    console.log(`mychess: http://127.0.0.1:${config.port}/`);
+    console.log(
+      `mychess: enCroissantPath = ${config.enCroissantPath || "(未配置)"} → ${
+        isConfigured(config) ? "可用" : "不可用"
+      }`,
+    );
   });
 }
