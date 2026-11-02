@@ -62,3 +62,12 @@ test("翻转后 data-square 跟着格子走，不跟着数组位置走", () => {
   // 翻转时屏幕左上角是 h1，即下标 63
   assert.equal(Number(first[1]), 63);
 });
+
+test("棋子字形不吃鼠标事件，点击要能穿透到它下面的方块", () => {
+  const svg = renderBoardSvg("r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R", false);
+  const texts = [...svg.matchAll(/<text [^>]*>/g)].map((m) => m[0]);
+  assert.equal(texts.length, 32);
+  for (const tag of texts) {
+    assert.match(tag, /pointer-events="none"/, `这个字形会吞点击: ${tag}`);
+  }
+});

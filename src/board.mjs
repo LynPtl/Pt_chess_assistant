@@ -57,7 +57,11 @@ export function renderBoardSvg(placement, flipped) {
       if (!piece) continue;
       const white = piece === piece.toUpperCase();
       parts.push(
+        // pointer-events="none" so a click on a piece reaches the square rect
+        // underneath: without it, clicking a piece does nothing at all and the
+        // board feels like a picture.
         `<text x="${col + 0.5}" y="${row + 0.5}" font-size="0.86" text-anchor="middle" ` +
+          `pointer-events="none" ` +
           `dominant-baseline="central" fill="${white ? "#fff" : "#111"}" ` +
           `stroke="${white ? "#111" : "#fff"}" stroke-width="0.035">${glyphFor(piece)}</text>`,
       );
