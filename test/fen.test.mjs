@@ -6,14 +6,14 @@ const ITALIAN = "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R";
 
 test("composeFen 推断出双方四个易位权", () => {
   assert.equal(
-    composeFen(ITALIAN, { turn: "w", castling: "inferred", flipped: false }),
+    composeFen(ITALIAN, { turn: "w", rights: { w: "KQ", b: "kq" }, flipped: false }),
     "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1",
   );
 });
 
 test("castling: none 时清空易位权", () => {
   assert.equal(
-    composeFen(ITALIAN, { turn: "b", castling: "none", flipped: false }),
+    composeFen(ITALIAN, { turn: "b", rights: { w: "-", b: "-" }, flipped: false }),
     "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b - - 0 1",
   );
 });
@@ -28,8 +28,8 @@ test("flipped 时 180 度旋转摆位", () => {
 
 test("flipped: true 时 composeFen 使用旋转后的摆位", () => {
   assert.equal(
-    composeFen("8/8/8/8/8/8/8/R3K2R", { turn: "w", castling: "inferred", flipped: true }),
-    "R2K3R/8/8/8/8/8/8/8 w - - 0 1",
+    composeFen("8/8/8/8/8/8/8/R3K2R", { turn: "w", rights: { w: "KQ", b: "-" }, flipped: true }),
+    "R2K3R/8/8/8/8/8/8/8 w KQ - 0 1",
   );
 });
 

@@ -60,8 +60,14 @@ export function isPlausible(placement) {
   return white === 1 && black === 1;
 }
 
-export function composeFen(placement, { turn, castling, flipped }) {
+/** Build the FEN the app would send.
+ *
+ *  `rights` is per side, as letters: `{ w: "KQ", b: "kq" }`. The caller resolves
+ *  it (see castling.mjs) because the side is chosen per side in the UI, and a
+ *  single all-or-nothing flag cannot express "white may still castle, black
+ *  may not". */
+export function composeFen(placement, { turn, rights = { w: "-", b: "-" }, flipped }) {
   const p = flipped ? flipPlacement(placement) : placement;
-  const rights = castling === "none" ? "-" : inferCastling(p);
-  return `${p} ${turn} ${rights} - 0 1`;
+  const letters = `${rights.w ?? ""}${rights.b ?? ""}`.replace(/-/g, "");
+  return `${p} ${turn} ${letters || "-"} - 0 1`;
 }

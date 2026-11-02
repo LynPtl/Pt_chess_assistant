@@ -2,6 +2,7 @@ import { createRecognizer, resolveOrientation } from "@scoriiu/fenshot";
 import { renderBoardSvg } from "./board.mjs";
 import { pickImageFile } from "./paste.mjs";
 import { composeFen, flipPlacement, isPlausible } from "./fen.mjs";
+import { castlingOptions, resolveRights } from "./castling.mjs";
 import { stampSquare } from "./edit.mjs";
 import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
 import { findHighlights, inferTurn, samplePoints } from "./highlight.mjs";
@@ -116,11 +117,11 @@ async function inferTurnFromHighlights(blob, scan, placement) {
     const bitmap = await createImageBitmap(blob);
     const colours = sampleSquareColours(bitmap, scan.corners);
     bitmap.close?.();
-    const verdict = inferTurn(placement, findHighlights(colours));
-    return verdict;
+    const highlights = findHighlights(colours);
+    return { inferred: inferTurn(placement, highlights), highlights };
   } catch (err) {
     console.debug("高亮格推断失败（不影响其它功能）", err);
-    return null;
+    return { inferred: null, highlights: [] };
   }
 }
 
@@ -137,7 +138,7 @@ export async function scanImage(blob) {
       return;
     }
     const { placement, orientation } = resolveOrientation(scan.placement);
-    const inferred = await inferTurnFromHighlights(blob, scan, placement);
+    const { inferred, highlights } = await inferTurnFromHighlights(blob, scan, placement);
     state = {
       kind: "result",
       scan,
@@ -145,13 +146,15 @@ export async function scanImage(blob) {
       orientation,
       turnInferred: Boolean(inferred),
       inferredMover: inferred?.mover ?? null,
+      highlights: highlights ?? [],
       imageUrl: URL.createObjectURL(blob),
       // Pixels cannot carry side to move or history, so these are the user's
       // to confirm: white to move, castling inferred from home squares.
       // `flipped` starts false because resolveOrientation already returned the
       // corrected placement; flipping it is the override for a wrong call.
       turn: inferred?.turn ?? "w",
-      castling: "inferred",
+      // 每侧三态：auto = 按推断，on/off = 用户明确指定
+      castling: { w: "auto", b: "auto" },
       flipped: false,
       edited: false,
       activePiece: null,
@@ -169,11 +172,21 @@ export function reset() {
   render();
 }
 
+/** 生效后的摆位：翻转只是显示层，但易位权要在"真实方向"上推。 */
+function effectivePlacement() {
+  return state.flipped ? flipPlacement(state.placement) : state.placement;
+}
+
+/** 每一侧的易位权：auto 用推断值，on 用位置上支持的全部，off 用无。 */
+function resolvedRights() {
+  return resolveRights(effectivePlacement(), state.highlights ?? [], state.castling ?? {});
+}
+
 function currentFen() {
   if (state.kind !== "result") return null;
   return composeFen(state.placement, {
     turn: state.turn,
-    castling: state.castling,
+    rights: resolvedRights(),
     flipped: state.flipped,
   });
 }
@@ -236,6 +249,33 @@ async function copyFen() {
     notice = { tone: "error", text: `复制失败：${err.message}` };
   }
   render();
+}
+
+/** 每一侧一组「有 | 无」。有 = 位置上支持的都算（用户明确声称），
+ *  无 = 一律没有；auto 时按推断结果选中，并标注「推断」。 */
+function castlingControls() {
+  const placement = effectivePlacement();
+  const rights = resolvedRights();
+  return ["w", "b"]
+    .map((side) => {
+      const options = castlingOptions(placement, side, state.highlights ?? []);
+      const choice = state.castling?.[side] ?? "auto";
+      const on = rights[side] !== "-";
+      const label = side === "w" ? "白方" : "黑方";
+      const marker =
+        choice === "auto" ? `<span class="inferred-mark" title="${escapeHtml(options.reason)}">（推断）</span>` : "";
+      const onDisabled = options.canHave ? "" : `disabled title="${escapeHtml(options.reason)}"`;
+      return `<div class="control">
+        <span class="control-label">${label}易位</span>
+        <div class="toggle">
+          <button type="button" class="${choice !== "auto" && on ? "on" : choice === "auto" && on ? "auto-on" : ""}"
+            data-action="castle-${side}-on" ${onDisabled}>有</button>
+          <button type="button" class="${!on && choice !== "auto" ? "on" : !on ? "auto-on" : ""}"
+            data-action="castle-${side}-off">无</button>
+        </div>${marker}
+      </div>`;
+    })
+    .join("");
 }
 
 function toggleButton(label, active, action) {
@@ -301,10 +341,7 @@ function renderNoBoard() {
 function renderResult() {
   const fen = currentFen();
   const verdict = verdictFor(fen);
-  // Read the rights straight out of the FEN we would actually send, so the
-  // label can never disagree with the payload.
-  const rights = fen.split(" ")[2];
-  const effectivePlacement = state.flipped ? flipPlacement(state.placement) : state.placement;
+  const boardPlacement = effectivePlacement();
   const confidence = Math.round(state.scan.meanConfidence * 100);
 
   const banners = verdict.warnings
@@ -320,7 +357,7 @@ function renderResult() {
         <figcaption>你的截图</figcaption>
       </figure>
       <figure class="board-figure">
-        ${renderBoardSvg(effectivePlacement, false, PIECE_URLS)}
+        ${renderBoardSvg(boardPlacement, false, PIECE_URLS)}
         <figcaption>
           识别结果 · 平均置信度 ${confidence}%${state.edited ? " · 已手动修正" : ""}
           <br /><span class="edit-hint">先在下面选棋子，再点格子盖上去 · 右键擦掉</span>
@@ -344,13 +381,7 @@ function renderResult() {
             ${toggleButton("黑方", state.turn === "b", "turn-b")}
           </div>
         </div>
-        <div class="control">
-          <span class="control-label">易位权</span>
-          <div class="toggle">
-            ${toggleButton(`推断 (${rights})`, state.castling === "inferred", "castle-inferred")}
-            ${toggleButton("无", state.castling === "none", "castle-none")}
-          </div>
-        </div>
+        ${castlingControls()}
         <div class="control">
           <span class="control-label">棋盘</span>
           <div class="toggle">${toggleButton("翻转", state.flipped, "flip")}</div>
@@ -386,8 +417,10 @@ function renderResult() {
     shutdown,
     "turn-w": () => setOption({ turn: "w", turnInferred: false }),
     "turn-b": () => setOption({ turn: "b", turnInferred: false }),
-    "castle-inferred": () => setOption({ castling: "inferred" }),
-    "castle-none": () => setOption({ castling: "none" }),
+    "castle-w-on": () => setCastling("w", "on"),
+    "castle-w-off": () => setCastling("w", "off"),
+    "castle-b-on": () => setCastling("b", "on"),
+    "castle-b-off": () => setCastling("b", "off"),
     flip: () => setOption({ flipped: !state.flipped }),
   });
 }
@@ -450,6 +483,12 @@ function bindBoardEditing() {
       render();
     });
   }
+}
+
+function setCastling(side, choice) {
+  notice = null;
+  state = { ...state, castling: { ...state.castling, [side]: choice } };
+  render();
 }
 
 function setOption(patch) {
