@@ -267,11 +267,11 @@ function renderResult() {
           识别结果 · 平均置信度 ${confidence}%${state.edited ? " · 已手动修正" : ""}
           <br /><span class="edit-hint">先在下面选棋子，再点格子盖上去 · 右键擦掉</span>
         </figcaption>
+        ${paletteHtml()}
       </figure>
     </section>
 
     <section class="under-board">
-      ${paletteHtml()}
       ${banners}
       ${noticeHtml}
       <code class="placement">${escapeHtml(fen)}</code>
@@ -338,7 +338,17 @@ function paletteHtml() {
     `data-piece="${piece}" title="${piece === "" ? "擦除" : piece}">` +
     (piece === "" ? "⌫" : `<img src="${PIECE_URLS[piece]}" alt="${piece}" />`) +
     `</button>`;
-  return `<div class="palette">${[...PALETTE, ""].map(button).join("")}</div>`;
+  const row = (pieces) => `<div class="palette-row">${pieces.map(button).join("")}</div>`;
+  // 白子一行、黑子一行；擦除单独放一个小的工具按钮，免得和棋子一样大
+  const white = PALETTE.filter((p) => p === p.toUpperCase());
+  const black = PALETTE.filter((p) => p !== p.toUpperCase());
+  const eraser =
+    `<div class="palette-row palette-erase">` +
+    `<button type="button" class="palette-btn small ${state.activePiece === "" ? "on" : ""}" ` +
+    `data-piece="" title="擦除">⌫</button>` +
+    `<span class="palette-label">擦除（右键点格子更快）</span>` +
+    `</div>`;
+  return `<div class="palette">${row(white)}${row(black)}${eraser}</div>`;
 }
 
 /** Same primitive for both buttons: stamp the selected piece (or erase). The
