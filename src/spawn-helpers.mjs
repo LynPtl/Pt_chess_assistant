@@ -31,3 +31,17 @@ export function openInBrowser(url, platform = process.platform, spawnImpl = node
     /* opening a browser is a convenience; the printed URL is the contract */
   }
 }
+
+/** Turn a listen failure into something a person can act on. The common case
+ *  is a previous mychess still holding the port, which otherwise surfaces as an
+ *  unhandled 'error' event and a console window that vanishes. */
+export function describeListenError(err, port) {
+  if (err && err.code === "EADDRINUSE") {
+    return (
+      `端口 ${port} 已被占用 —— 多半是之前开的 mychess 还活着。\n` +
+      `  直接打开 http://127.0.0.1:${port}/ 就能用那个实例；\n` +
+      `  想用新配置的话，先关掉那个黑色窗口再重新运行 start.bat。`
+    );
+  }
+  return `本地服务启动失败：${err?.message ?? err}`;
+}

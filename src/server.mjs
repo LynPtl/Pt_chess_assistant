@@ -1,6 +1,6 @@
 import { appendFileSync, createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
-import { launchProcess, openInBrowser } from "./spawn-helpers.mjs";
+import { describeListenError, launchProcess, openInBrowser } from "./spawn-helpers.mjs";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Chess } from "chess.js";
@@ -268,13 +268,23 @@ if (invokedAs === import.meta.url) {
   const { loadConfig } = await import("./config.mjs");
   const config = loadConfig();
   const url = `http://127.0.0.1:${config.port}/`;
-  createServer(config, { reloadConfig: () => loadConfig() }).listen(config.port, "127.0.0.1", () => {
-    console.log(`mychess: ${url}`);
+  const server = createServer(config, { reloadConfig: () => loadConfig() });
+  server.on("error", (err) => {
+    console.error(describeListenError(err, config.port));
+    process.exit(1);
+  });
+  server.listen(config.port, "127.0.0.1", () => {
+    console.log("------------------------------------------------------------");
+    console.log(`  已经启动了：${url}`);
+    console.log("  这个黑色窗口就是服务本身，别关它（最小化就好）。");
+    console.log("  浏览器没自动打开的话，手动复制上面这个地址。");
+    console.log("------------------------------------------------------------");
     console.log(
-      `mychess: enCroissantPath = ${config.enCroissantPath || "(未配置)"} → ${
-        isConfigured(config) ? "可用" : "不可用"
+      `  En Croissant：${isConfigured(config) ? "已连上" : "未连上"} —— ${
+        configStatus(config).reason || config.enCroissantPath
       }`,
     );
+    console.log("");
     // Opening the page from here (rather than from start.bat) means the
     // browser never races the server. MYCHESS_NO_OPEN=1 suppresses it.
     if (process.env.MYCHESS_NO_OPEN !== "1") openInBrowser(url);

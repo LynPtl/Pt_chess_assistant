@@ -71,3 +71,16 @@ test("openInBrowser 的命令不存在时不会崩", () => {
   };
   assert.doesNotThrow(() => openInBrowser("http://127.0.0.1:8787/", "linux", spawnImpl));
 });
+
+test("describeListenError 把 EADDRINUSE 说成人话", async () => {
+  const { describeListenError } = await import("../src/spawn-helpers.mjs");
+  const msg = describeListenError({ code: "EADDRINUSE" }, 8787);
+  assert.match(msg, /8787/);
+  assert.match(msg, /占用|已经在跑/);
+});
+
+test("describeListenError 对其它错误保留原始信息", async () => {
+  const { describeListenError } = await import("../src/spawn-helpers.mjs");
+  const msg = describeListenError({ code: "EACCES", message: "permission denied" }, 8787);
+  assert.match(msg, /permission denied/);
+});
