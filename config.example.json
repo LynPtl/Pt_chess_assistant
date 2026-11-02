@@ -1,0 +1,6 @@
+{
+  "enCroissantPath": "C:/Program Files/En Croissant/en-croissant.exe",
+  "port": 8787,
+  "pgnTempDir": "",
+  "logPath": "logs/recognitions.jsonl"
+}

@@ -56,3 +56,11 @@ test("enCroissantPath 原样保留，不做路径解析", () => {
   const file = tempConfig(JSON.stringify({ enCroissantPath: "C:\\Program Files\\En Croissant\\en-croissant.exe" }));
   assert.equal(loadConfig(file).enCroissantPath, "C:\\Program Files\\En Croissant\\en-croissant.exe");
 });
+
+test("enCroissantPath 里出现换行/制表符时抛出可读错误", () => {
+  const file = tempConfig(JSON.stringify({ enCroissantPath: "D:\Program Files\nodejs\node.exe" }));
+  assert.throws(
+    () => loadConfig(file),
+    (err) => err instanceof Error && /正斜杠|反斜杠/.test(err.message),
+  );
+});

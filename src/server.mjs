@@ -215,12 +215,18 @@ const invokedAs = process.argv[1] ? pathToFileURL(process.argv[1]).href : null;
 if (invokedAs === import.meta.url) {
   const { loadConfig } = await import("./config.mjs");
   const config = loadConfig();
+  const url = `http://127.0.0.1:${config.port}/`;
   createServer(config).listen(config.port, "127.0.0.1", () => {
-    console.log(`mychess: http://127.0.0.1:${config.port}/`);
+    console.log(`mychess: ${url}`);
     console.log(
       `mychess: enCroissantPath = ${config.enCroissantPath || "(未配置)"} → ${
         isConfigured(config) ? "可用" : "不可用"
       }`,
     );
+    // Opening the page from here (rather than from start.bat) means the
+    // browser never races the server. MYCHESS_NO_OPEN=1 suppresses it.
+    if (process.env.MYCHESS_NO_OPEN !== "1") {
+      spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore" }).unref();
+    }
   });
 }

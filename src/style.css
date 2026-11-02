@@ -260,3 +260,31 @@ button:hover {
   border: 1px solid #c94b4b;
   color: #b3261e;
 }
+
+table.fixtures {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+table.fixtures th,
+table.fixtures td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+table.fixtures td:last-child {
+  font-family: ui-monospace, Consolas, monospace;
+  word-break: break-all;
+}
+
+table.fixtures tr.fail td {
+  background: #fbe3e3;
+  color: #7c1d1d;
+}
+
+table.fixtures tr.pass td:nth-child(3) {
+  color: var(--accent);
+  font-weight: 600;
+}

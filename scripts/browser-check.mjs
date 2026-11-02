@@ -85,14 +85,23 @@ async function waitForPage(port) {
   throw new Error("没有找到页面 target");
 }
 
-// Always wait for the page's own completion marker first: before the initial
-// navigation lands, the target's execution context is about:blank, where a
-// caller expression would silently operate on the wrong document.
+// Always wait for the page's own completion marker first, and make sure we are
+// on the requested URL: before the initial navigation lands, the target's
+// execution context is about:blank (or a first-run page), where a caller
+// expression would silently operate on the wrong document.
 const EXPRESSION = `(async () => {
-  while (!window.__done) await new Promise((r) => setTimeout(r, 50));
+  const want = ${JSON.stringify(url)};
+  const same = (a) => a.split("#")[0] === want.split("#")[0];
+  for (let i = 0; i < 400; i++) {
+    if (same(location.href) && window.__done) break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  if (!same(location.href)) return { __wrongPage: location.href };
+  // window.__done may be a pending promise (a regression run), and a pending
+  // promise is truthy — the loop above cannot tell "started" from "finished".
+  await window.__done;
   return await (${
-    customExpression ??
-    `(() => window.__done)()`
+    customExpression ?? `(() => window.__done)()`
   });
 })()`;
 
@@ -119,6 +128,9 @@ function evaluate(wsUrl) {
       if (exceptionDetails) {
         return reject(new Error(exceptionDetails.exception?.description ?? exceptionDetails.text));
       }
+      if (result.value && result.value.__wrongPage) {
+        return reject(new Error(`__wrongPage ${result.value.__wrongPage}`));
+      }
       resolve(result.value);
     });
     ws.addEventListener("error", () => reject(new Error("WebSocket 连接失败")));
@@ -134,7 +146,7 @@ async function evaluateWithRetry(wsUrl) {
       return await evaluate(wsUrl);
     } catch (err) {
       lastError = err;
-      if (!/context was destroyed|Cannot find context|求值超时/i.test(String(err))) throw err;
+      if (!/context was destroyed|Cannot find context|求值超时|__wrongPage/i.test(String(err))) throw err;
       await sleep(400);
     }
   }
