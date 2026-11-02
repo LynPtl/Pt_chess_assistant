@@ -187,8 +187,11 @@ export function createServer(config, deps = {}) {
       return;
     }
 
-    const root = pathname.startsWith("/fixtures/") ? fixtureRoot : staticRoot;
-    const target = resolveInside(root, pathname);
+    // /fixtures/* is served from the repo's fixture corpus; everything else
+    // from the build output. The prefix has to come off before resolving.
+    const isFixture = pathname.startsWith("/fixtures/");
+    const root = isFixture ? fixtureRoot : staticRoot;
+    const target = resolveInside(root, isFixture ? pathname.slice("/fixtures".length) : pathname);
     if (target === null) {
       res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
       res.end("bad path");

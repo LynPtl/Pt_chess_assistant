@@ -85,3 +85,12 @@ test("/healthz 在 enCroissantPath 指向真实文件时 configured 为 true", a
   const body = await (await fetch(`http://127.0.0.1:${port}/healthz`)).json();
   assert.equal(body.configured, true);
 });
+
+test("GET /fixtures/<name> 从 fixtureRoot 提供文件", async (t) => {
+  const fixtures = mkdtempSync(join(tmpdir(), "mychess-fixtures-"));
+  writeFileSync(join(fixtures, "board.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  const { base } = await serve(t, { fixtureRoot: fixtures });
+  const res = await fetch(`${base}/fixtures/board.png`);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("content-type"), "image/png");
+});
