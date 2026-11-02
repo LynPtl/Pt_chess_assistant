@@ -1,6 +1,6 @@
 import { appendFileSync, createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
-import { spawn } from "node:child_process";
+import { launchProcess, openInBrowser } from "./spawn-helpers.mjs";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Chess } from "chess.js";
@@ -75,7 +75,7 @@ function readBody(req) {
 
 function defaultLaunch(config) {
   return (pgnPath) => {
-    spawn(config.enCroissantPath, [pgnPath], { detached: true, stdio: "ignore" }).unref();
+    launchProcess(config.enCroissantPath, [pgnPath]);
   };
 }
 
@@ -225,8 +225,6 @@ if (invokedAs === import.meta.url) {
     );
     // Opening the page from here (rather than from start.bat) means the
     // browser never races the server. MYCHESS_NO_OPEN=1 suppresses it.
-    if (process.env.MYCHESS_NO_OPEN !== "1") {
-      spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore" }).unref();
-    }
+    if (process.env.MYCHESS_NO_OPEN !== "1") openInBrowser(url);
   });
 }

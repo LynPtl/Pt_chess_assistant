@@ -4,6 +4,7 @@ import { pickImageFile } from "./paste.mjs";
 import { composeFen, flipPlacement, isPlausible } from "./fen.mjs";
 import { evaluatePosition } from "./guards.mjs";
 import { judgeFixture } from "./fixtures.mjs";
+import { releaseResultUrl } from "./urls.mjs";
 import "./style.css";
 
 // src/ort/ and src/model/ are synced from node_modules by
@@ -29,6 +30,7 @@ let handoffAvailable = false;
 let notice = null; // { tone: "ok" | "error", text }
 
 export async function scanImage(blob) {
+  releaseResultUrl(state);
   state = { kind: "scanning" };
   notice = null;
   render();
@@ -61,7 +63,7 @@ export async function scanImage(blob) {
 }
 
 export function reset() {
-  if (state.kind === "result") URL.revokeObjectURL(state.imageUrl);
+  releaseResultUrl(state);
   notice = null;
   state = { kind: "idle" };
   render();

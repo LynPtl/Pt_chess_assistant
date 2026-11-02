@@ -39,8 +39,7 @@
 
 ## 安装
 
-前置：[Node.js](https://nodejs.org) 20+（开发时用的是 v24.20.0），以及
-[En Croissant](https://www.encroissant.org)。
+前置：[Node.js](https://nodejs.org) 22+（开发时用的是 v24.20.0）。再装 [En Croissant](https://www.encroissant.org)。
 
 ```bat
 git clone <this repo> mychess

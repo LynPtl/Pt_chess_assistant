@@ -41,3 +41,10 @@ test("dist 中的 wasm 与模型体积非零", { skip }, () => {
   assert.ok(statSync(wasm).size > 1_000_000, `wasm 太小: ${statSync(wasm).size}`);
   assert.ok(statSync(onnx).size > 1_000_000, `onnx 太小: ${statSync(onnx).size}`);
 });
+
+test("package.json 声明了 Node 版本下限（glob 与 import.meta.resolve 都需要）", () => {
+  const pkg = JSON.parse(readFileSync(resolve("package.json"), "utf8"));
+  assert.ok(pkg.engines?.node, "缺少 engines.node");
+  assert.match(pkg.engines.node, /2[2-9]|3\d/);
+  assert.equal(pkg.type, "module");
+});
