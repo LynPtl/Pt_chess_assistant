@@ -165,3 +165,98 @@ button:hover {
   font-size: 12px;
   white-space: pre-wrap;
 }
+
+.controls {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.toggle {
+  display: flex;
+}
+
+.toggle button {
+  border-radius: 0;
+}
+
+.toggle button:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.toggle button:last-child {
+  border-radius: 0 6px 6px 0;
+  border-left: none;
+}
+
+.toggle button.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.actions button.primary {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.actions button[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.banner {
+  width: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid #d9a13b;
+  border-radius: 6px;
+  background: #fdf3dc;
+  color: #6b4a06;
+  font-size: 14px;
+}
+
+.banner-block {
+  border-color: #c94b4b;
+  background: #fbe3e3;
+  color: #7c1d1d;
+}
+
+.notice {
+  width: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.notice-ok {
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+.notice-error {
+  border: 1px solid #c94b4b;
+  color: #b3261e;
+}

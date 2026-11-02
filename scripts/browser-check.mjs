@@ -23,6 +23,10 @@ const CHROME_CANDIDATES = [
 const url = process.argv[2];
 const timeoutArg = process.argv.find((a) => a.startsWith("--timeout="));
 const timeoutMs = timeoutArg ? Number(timeoutArg.split("=")[1]) : 60_000;
+// --expr lets a check drive the page (click a button, read a banner) instead
+// of only waiting for the page's own promise.
+const exprArg = process.argv.find((a) => a.startsWith("--expr="));
+const customExpression = exprArg ? exprArg.slice("--expr=".length) : null;
 if (!url) {
   console.error("usage: node scripts/browser-check.mjs <url> [--timeout=ms]");
   process.exit(2);
@@ -81,9 +85,15 @@ async function waitForPage(port) {
   throw new Error("没有找到页面 target");
 }
 
+// Always wait for the page's own completion marker first: before the initial
+// navigation lands, the target's execution context is about:blank, where a
+// caller expression would silently operate on the wrong document.
 const EXPRESSION = `(async () => {
   while (!window.__done) await new Promise((r) => setTimeout(r, 50));
-  return await window.__done;
+  return await (${
+    customExpression ??
+    `(() => window.__done)()`
+  });
 })()`;
 
 function evaluate(wsUrl) {
