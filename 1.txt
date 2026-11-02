@@ -1,0 +1,170 @@
+下面这份 Markdown 可直接保存为 `TASK.md` 交接给本地 agent。
+
+```markdown
+# 任务交接：截图直接导入国际象棋分析界面
+
+## 1. 任务一句话
+实现一个本地工作流：用户对国际象棋棋盘截图后，系统自动/半自动将截图识别为 FEN，并把 FEN 导入本地 GUI 分析界面，供 Maia 3 或 Stockfish 等 UCI 引擎分析。
+
+## 2. 背景
+- Maia 3 是 UCI 引擎，本身不处理图片，只接收 FEN/走法。
+- 因此“截图直接拉进分析界面”的本质是：
+  `截图 -> 棋盘识别 -> FEN 字符串 -> 导入 GUI -> 引擎分析`
+- 目标不是修改 Maia 3，而是做一个截图到 FEN 的桥接工具/流程。
+
+## 3. 目标
+### P0 必须完成
+- 支持从本地截图文件或剪贴板图片生成 FEN。
+- 支持人工核对识别结果，避免错误局面进入分析。
+- 支持将 FEN 快速导入至少一个本地 GUI 分析软件。
+- 在本地 GUI 中可调用 Maia 3 或 Stockfish 分析该局面。
+
+### P1 建议完成
+- 提供全局热键：截图后一键识别并复制 FEN。
+- 自动模拟 GUI 的“从剪贴板读取 FEN”快捷键。
+- 提供简单日志，记录每次识别出的 FEN 和置信度/警告。
+
+### P2 可选
+- 支持批量图片识别。
+- 支持监听剪贴板图片变化并自动识别。
+- 支持多平台：Windows / macOS / Linux 至少一个主平台，其他平台给说明。
+
+## 4. 非目标
+- 不训练新的棋盘识别模型。
+- 不修改 Maia 3 源码。
+- 不实现在线网站爬虫或破解。
+- 不保证所有非标准棋盘主题 100% 识别；必须保留人工核对环节。
+
+## 5. 推荐技术路线
+### 路线 A：最快 MVP，手动半自动
+1. 用户截图。
+2. 打开浏览器工具 `fenshot` 或本地工具识别为 FEN。
+3. 复制 FEN。
+4. 在 Arena 中按 `F6`，或菜单 `Position -> Get FEN from Clipboard` 导入。
+5. 选择 Maia 3 / Stockfish 分析。
+
+适用：快速验证，不需要写代码。
+
+### 路线 B：本地脚本自动化，推荐交给 agent 实现
+1. 监听截图文件或剪贴板图片。
+2. 调用本地识别工具生成 FEN：
+   - 优先尝试 `chessimg2pos`（Python，命令行）。
+   - 备选 `chess-scan`（Node.js）。
+   - 如果安装困难，调用 `fenshot` 的本地/在线页面作为兜底。
+3. 用 `pyperclip` 将 FEN 写入剪贴板。
+4. 模拟 GUI 快捷键（如 Arena 的 `F6`）导入局面。
+5. 输出日志并提示用户核对。
+
+适用：接近“截图直接拉进分析界面”的体验。
+
+## 6. 环境与依赖
+请 agent 先确认：
+- 操作系统：Windows / macOS / Linux
+- Python 版本
+- 是否已安装 GUI：Arena / Scid / Nibbler 等
+- 是否已安装 Maia 3 或 Stockfish
+- 是否允许安装 Python 包和模拟键盘输入
+
+建议依赖：
+```bash
+# Python 方案，包名以实际 README 为准
+pip install pyperclip pillow watchdog
+# chessimg2pos 按其官方 README 安装
+```
+
+GUI 导入方式：
+- Arena：复制 FEN 后按 `F6`，或 `Position -> Get FEN from Clipboard`。以实际版本为准。
+- Scid：使用剪贴板导入/FEN 导入功能。
+- Nibbler 等 UCI GUI：粘贴 FEN 或通过支持 FEN 的导入入口加载。
+
+Maia 3 参考：
+- 官方页面：https://www.maiachess.com/drills
+- GitHub：https://github.com/CSSLab/maia3
+- Hugging Face：https://huggingface.co/collections/MaiaChess/maia3
+
+## 7. 实现步骤建议
+1. 写一个 `README.md`，说明安装、配置、使用方式。
+2. 实现 `screenshot_to_fen.py`：
+   - 输入：图片路径或剪贴板图片。
+   - 处理：调用识别后端。
+   - 输出：FEN 字符串 + 识别警告。
+3. 实现 `fen_to_gui.py` 或合并到主脚本：
+   - 将 FEN 复制到剪贴板。
+   - 可选：模拟快捷键导入 GUI。
+4. 提供配置文件 `config.yaml` 或 `.env`：
+   - 识别后端选择
+   - GUI 快捷键
+   - 是否自动导入
+   - 日志路径
+5. 提供 `demo`：
+   - 一张标准 Lichess/Chess.com 截图
+   - 识别出的 FEN
+   - 导入 Arena 后的截图/录屏
+6. 写测试用例：
+   - 标准初始局面截图
+   - 中局截图
+   - 翻转棋盘截图
+   - 低分辨率截图
+   - 非标准棋子主题截图
+
+## 8. 伪代码参考
+```python
+# 伪代码，具体 API 按所选识别工具调整
+import pyperclip
+from pathlib import Path
+
+def image_to_fen(image_path: Path) -> str:
+    # 调用 chessimg2pos / chess-scan / fenshot 本地后端
+    # 返回 FEN，并保存识别日志
+    raise NotImplementedError
+
+def copy_fen(fen: str) -> None:
+    pyperclip.copy(fen)
+
+def trigger_gui_import() -> None:
+    # 可选：模拟 Arena F6 或对应 GUI 快捷键
+    # Windows 可用 pyautogui，macOS 可用 AppleScript，Linux 可用 xdotool
+    pass
+
+def main(image_path: Path) -> None:
+    fen = image_to_fen(image_path)
+    print("识别 FEN:", fen)
+    print("请肉眼核对识别结果。")
+    copy_fen(fen)
+    trigger_gui_import()
+```
+
+## 9. 验收标准
+- [ ] 能对至少 5 张标准棋盘截图生成 FEN。
+- [ ] 识别结果在导入前可见、可人工核对。
+- [ ] 复制 FEN 后，Arena 中按 `F6` 能同步局面。
+- [ ] 导入后的局面可被 Maia 3 或 Stockfish 分析。
+- [ ] 从截图到 FEN 的中位耗时小于 10 秒（路线 B）。
+- [ ] README 包含完整安装与使用说明。
+- [ ] 有失败场景说明：低分辨率、非标准主题、棋盘翻转、遮挡等。
+- [ ] 至少提供一个可复现 demo。
+
+## 10. 风险与注意事项
+- 棋盘识别可能出错，尤其是非标准棋子主题、翻转棋盘、低分辨率、遮挡、坐标缺失。必须人工核对。
+- 模拟快捷键依赖 GUI 版本和操作系统权限。若不稳定，退化为“只复制 FEN，用户手动粘贴”。
+- 不要默认开启全自动导入；建议先显示 FEN 并等待确认。
+- 第三方工具许可证需记录，优先选择开源工具。
+- 不要把用户截图上传到不可信服务；优先本地识别。
+
+## 11. 交付物
+- `README.md`
+- 主脚本/工具
+- 配置文件
+- 测试图片与预期 FEN
+- demo 截图或录屏
+- 已知问题列表
+
+## 12. 给本地 agent 的开工顺序
+1. 确认操作系统、Python、GUI 和引擎安装情况。
+2. 先跑通路线 A：手动截图 -> fenshot/本地工具 -> FEN -> Arena `F6`。
+3. 再实现路线 B 的最小脚本：图片 -> FEN -> 剪贴板。
+4. 最后加可选快捷键模拟和剪贴板监听。
+5. 每步都保留人工核对，不要直接全自动分析错误局面。
+```
+
+如果需要，我也可以把它压缩成更短的 `TASK.md`，或者拆成 `README + 验收清单` 两个文件。
