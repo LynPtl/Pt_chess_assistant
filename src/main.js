@@ -26,8 +26,33 @@ const app = document.getElementById("app");
  *      turn: "w"|"b", castling: "inferred"|"none", flipped: boolean } */
 export let state = { kind: "idle" };
 
-let handoffAvailable = false;
+/** Mirrors GET /healthz. Re-fetched on demand, because a user who just fixed
+ *  config.json should not have to guess that the browser is showing a stale
+ *  answer. */
+let health = { configured: false, reason: "还没连上本地服务" };
 let notice = null; // { tone: "ok" | "error", text }
+
+async function refreshHealth() {
+  try {
+    health = await (await fetch("/healthz")).json();
+  } catch (err) {
+    health = { configured: false, reason: `连不上本地服务：${err.message}` };
+  }
+  render();
+}
+
+async function openEnCroissant() {
+  try {
+    const response = await fetch("/open", { method: "POST" });
+    const body = await response.json();
+    notice = body.ok
+      ? { tone: "ok", text: "已启动 En Croissant" }
+      : { tone: "error", text: body.error ?? "启动失败" };
+  } catch (err) {
+    notice = { tone: "error", text: `启动失败：${err.message}` };
+  }
+  render();
+}
 
 export async function scanImage(blob) {
   releaseResultUrl(state);
@@ -97,7 +122,7 @@ function escapeHtml(value) {
 
 async function sendToEnCroissant() {
   const fen = currentFen();
-  if (!fen || !handoffAvailable) return;
+  if (!fen || !health.configured) return;
   const verdict = verdictFor(fen);
   if (verdict.blocked) return;
   if (verdict.needsConfirm && !window.confirm("识别结果有警告，仍然送入 En Croissant？")) return;
@@ -142,9 +167,32 @@ function toggleButton(label, active, action) {
   return `<button type="button" class="${active ? "on" : ""}" data-action="${action}">${label}</button>`;
 }
 
+/** Status strip: whether the handoff is wired, why not when it isn't, and the
+ *  two things a user can do about it without leaving the page. */
+function statusStrip() {
+  if (health.configured) {
+    return `<div class="service-status ok">
+      <span>● 已连上 En Croissant</span>
+      <button type="button" data-action="open-app">打开 En Croissant</button>
+    </div>`;
+  }
+  return `<div class="service-status bad">
+    <span>● 未连上 En Croissant —— ${escapeHtml(health.reason ?? "")}</span>
+    <button type="button" data-action="refresh-health">重新检测</button>
+  </div>`;
+}
+
+function noticeBlock() {
+  return notice
+    ? `<p class="notice notice-${notice.tone}" role="status">${escapeHtml(notice.text)}</p>`
+    : "";
+}
+
 function renderIdleOrScanning() {
   const busy = state.kind === "scanning";
   app.innerHTML = `
+    ${statusStrip()}
+    ${noticeBlock()}
     <section class="dropzone ${busy ? "busy" : ""}">
       <h1>粘贴棋盘截图</h1>
       <p class="hint"><kbd>Ctrl</kbd>+<kbd>V</kbd> 任意位置粘贴 · 拖入图片 · 或点这里选择文件</p>
@@ -157,6 +205,7 @@ function renderIdleOrScanning() {
     if (file) void scanImage(file);
     event.target.value = "";
   });
+  bind({ "refresh-health": refreshHealth, "open-app": openEnCroissant });
 }
 
 function renderNoBoard() {
@@ -183,11 +232,10 @@ function renderResult() {
   const banners = verdict.warnings
     .map((w) => `<p class="banner${verdict.blocked ? " banner-block" : ""}" role="alert">${escapeHtml(w)}</p>`)
     .join("");
-  const noticeHtml = notice
-    ? `<p class="notice notice-${notice.tone}" role="status">${escapeHtml(notice.text)}</p>`
-    : "";
+  const noticeHtml = noticeBlock();
 
   app.innerHTML = `
+    ${statusStrip()}
     <section class="result">
       <figure>
         <img src="${state.imageUrl}" alt="你粘贴的截图" />
@@ -227,7 +275,7 @@ function renderResult() {
 
       <div class="actions">
         ${
-          handoffAvailable
+          health.configured
             ? `<button type="button" class="primary" data-action="send" ${
                 verdict.blocked ? "disabled" : ""
               }>送入 En Croissant</button>`
@@ -237,9 +285,9 @@ function renderResult() {
         <button type="button" data-action="reset">再试一张</button>
       </div>
       ${
-        handoffAvailable
+        health.configured
           ? ""
-          : `<p class="hint">未配置 enCroissantPath，只能复制 FEN。见 README。</p>`
+          : `<p class="hint">还不能送入：${escapeHtml(health.reason ?? "")}。改好 <code>config.json</code>，再点上面的「重新检测」。</p>`
       }
     </section>`;
 
@@ -247,6 +295,8 @@ function renderResult() {
     reset,
     copy: copyFen,
     send: sendToEnCroissant,
+    "refresh-health": refreshHealth,
+    "open-app": openEnCroissant,
     "turn-w": () => setOption({ turn: "w" }),
     "turn-b": () => setOption({ turn: "b" }),
     "castle-inferred": () => setOption({ castling: "inferred" }),
@@ -309,12 +359,7 @@ try {
   document.body.dataset.error = String(err);
 }
 
-try {
-  const health = await (await fetch("/healthz")).json();
-  handoffAvailable = Boolean(health.configured);
-} catch {
-  handoffAvailable = false;
-}
+await refreshHealth();
 
 async function blankPng() {
   const canvas = document.createElement("canvas");
@@ -422,7 +467,7 @@ async function runSelfTest() {
           turn: state.turn,
           flipped: state.flipped,
           verdict: verdictFor(currentFen()),
-          handoffAvailable,
+          handoffAvailable: health.configured,
           dom: {
             image: Boolean(app.querySelector(".result img")),
             board: Boolean(app.querySelector("svg.board")),

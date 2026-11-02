@@ -94,3 +94,86 @@ test("GET /fixtures/<name> 从 fixtureRoot 提供文件", async (t) => {
   assert.equal(res.status, 200);
   assert.equal(res.headers.get("content-type"), "image/png");
 });
+
+test("/healthz 在路径为空时给出原因", async (t) => {
+  const { base } = await serve(t);
+  const body = await (await fetch(`${base}/healthz`)).json();
+  assert.equal(body.configured, false);
+  assert.match(body.reason, /enCroissantPath/);
+});
+
+test("/healthz 在路径不存在时给出该路径", async (t) => {
+  const server = createServer(
+    { ...CONFIG, enCroissantPath: "C:/nope/en-croissant.exe" },
+    { staticRoot: makeStaticRoot() },
+  );
+  server.listen(0, "127.0.0.1");
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  await new Promise((r) => server.once("listening", r));
+  const body = await (await fetch(`http://127.0.0.1:${server.address().port}/healthz`)).json();
+  assert.equal(body.configured, false);
+  assert.ok(body.reason.includes("C:/nope/en-croissant.exe"), body.reason);
+});
+
+test("/healthz 在配置完好时 reason 为空", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "mychess-exe2-"));
+  const exe = join(dir, "en-croissant.exe");
+  writeFileSync(exe, "");
+  const server = createServer({ ...CONFIG, enCroissantPath: exe }, { staticRoot: makeStaticRoot() });
+  server.listen(0, "127.0.0.1");
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  await new Promise((r) => server.once("listening", r));
+  const body = await (await fetch(`http://127.0.0.1:${server.address().port}/healthz`)).json();
+  assert.equal(body.configured, true);
+  assert.equal(body.reason, "");
+});
+
+test("/healthz 在提供 reloadConfig 时使用最新的配置（改配置不用重启）", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "mychess-reload-"));
+  const exe = join(dir, "en-croissant.exe");
+  let path = "";
+  const server = createServer(CONFIG, {
+    staticRoot: makeStaticRoot(),
+    reloadConfig: () => ({ ...CONFIG, enCroissantPath: path }),
+  });
+  server.listen(0, "127.0.0.1");
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  await new Promise((r) => server.once("listening", r));
+  const url = `http://127.0.0.1:${server.address().port}/healthz`;
+
+  assert.equal((await (await fetch(url)).json()).configured, false);
+  writeFileSync(exe, "");
+  path = exe;
+  const after = await (await fetch(url)).json();
+  assert.equal(after.configured, true);
+  assert.equal(after.reason, "");
+});
+
+test("reloadConfig 抛错（例如 config.json 写坏了）时 /healthz 仍返回 200 并给出原因", async (t) => {
+  const server = createServer(CONFIG, {
+    staticRoot: makeStaticRoot(),
+    reloadConfig: () => {
+      throw new Error("无法解析配置文件 D:\mychess\config.json: Unexpected token");
+    },
+  });
+  server.listen(0, "127.0.0.1");
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  await new Promise((r) => server.once("listening", r));
+  const res = await fetch(`http://127.0.0.1:${server.address().port}/healthz`);
+  const body = await res.json();
+  assert.equal(res.status, 200);
+  assert.equal(body.configured, false);
+  assert.match(body.reason, /无法解析配置文件/);
+});

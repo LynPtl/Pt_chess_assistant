@@ -288,3 +288,30 @@ table.fixtures tr.pass td:nth-child(3) {
   color: var(--accent);
   font-weight: 600;
 }
+
+.service-status {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 13px;
+}
+
+.service-status.ok span {
+  color: var(--accent);
+}
+
+.service-status.bad span {
+  color: #b3261e;
+}
+
+.service-status button {
+  margin-left: auto;
+  padding: 4px 10px;
+  font-size: 13px;
+}

@@ -97,6 +97,12 @@ C:\Program Files\En Croissant\en-croissant.exe
 
 ![粘贴页](docs/images/01-paste.png)
 
+页面最上面有一条状态栏，先看它：
+
+- **绿点 `● 已连上 En Croissant`** → 一切就绪，右边还能点「打开 En Croissant」直接把分析器打开
+- **红点 `● 未连上`** → 后面会写明原因（没填路径 / 路径不存在 / config.json 写坏了），
+  改好 `config.json` 后点「重新检测」即可，**不用重启**
+
 ### 1. 截图
 
 `Win` + `Shift` + `S` 框选棋盘 → 截图进了剪贴板。
@@ -125,6 +131,17 @@ C:\Program Files\En Croissant\en-croissant.exe
 页面显示"已送入 En Croissant"。
 
 En Croissant 窗口里会出现一个叫 **`Pasted position`** 的标签页，棋盘上就是刚才那个局面。
+
+### 如果状态栏是红的
+
+`reason` 会直接告诉你哪一步不对，例如：
+
+```
+● 未连上 En Croissant —— enCroissantPath 指向的文件不存在：C:/wrong/place/en-croissant.exe    [重新检测]
+● 未连上 En Croissant —— 无法解析配置文件 D:\mychess\config.json: Expected property name...  [重新检测]
+```
+
+按提示改 `config.json`（**路径用正斜杠**），存盘，点「重新检测」。服务会重新读这个文件，不用关窗口。
 
 ### 5. 在 En Croissant 里开引擎
 
@@ -231,6 +248,8 @@ node scripts/browser-check.mjs "http://127.0.0.1:8787/?fixtures=1"
 - **送入后不会自动开始分析。** 标签页会开出来、局面正确，但分析面板是空的，
   En Croissant 的 Engines 页显示 `No engine selected`。到 Analysis → Engines
   里选中你装好的引擎即可，之后每个新标签页都要选一次（或按你配置的默认引擎走）。
+- **配置改动即时生效**：`/healthz` 每次请求都重新读 `config.json`，所以点「重新检测」就行；
+  只有 `port` 改了才需要重启（端口在启动时就绑定了）。
 - **每次送入都会新开一个窗口。** 虽然它带 `tauri-plugin-single-instance`，
   实测第二个实例没有退出（`en-croissant.exe` 进程数 1 → 2）。介意的话送之前先关掉旧窗口。
   想改善的话，En Croissant 支持 `encroissant://import?url=<pgn 地址>` 深链，

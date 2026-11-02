@@ -168,3 +168,35 @@ test("目标 PGN 路径不可写时返回 500 且 error 非空", async (t) => {
   assert.equal(body.ok, false);
   assert.ok(body.error.length > 0);
 });
+
+test("POST /open 在配置完好时启动 En Croissant 且不带参数", async (t) => {
+  const ws = makeWorkspace();
+  const calls = [];
+  const base = await serve(t, { enCroissantPath: ws.exe, pgnTempDir: ws.pgnTempDir, logPath: ws.logPath }, (p) =>
+    calls.push(p),
+  );
+
+  const res = await fetch(`${base}/open`, { method: "POST" });
+  const body = await res.json();
+
+  assert.equal(res.status, 200);
+  assert.equal(body.ok, true);
+  assert.deepEqual(calls, [null], "应以「无参数」启动");
+});
+
+test("POST /open 在未配置时返回 400 并说明原因", async (t) => {
+  const ws = makeWorkspace();
+  const base = await serve(t, { enCroissantPath: "", pgnTempDir: ws.pgnTempDir, logPath: ws.logPath }, () => {});
+
+  const res = await fetch(`${base}/open`, { method: "POST" });
+  const body = await res.json();
+
+  assert.equal(res.status, 400);
+  assert.match(body.error, /enCroissantPath/);
+});
+
+test("POST /open 拒绝 GET", async (t) => {
+  const ws = makeWorkspace();
+  const base = await serve(t, { enCroissantPath: ws.exe, pgnTempDir: ws.pgnTempDir, logPath: ws.logPath }, () => {});
+  assert.equal((await fetch(`${base}/open`)).status, 405);
+});
