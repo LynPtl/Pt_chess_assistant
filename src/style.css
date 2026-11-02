@@ -434,3 +434,12 @@ table.fixtures tr.pass td:nth-child(3) {
   opacity: 0.8;
   letter-spacing: 0.05em;
 }
+
+.board .drag-source {
+  opacity: 0.25;
+}
+
+.board .drag-ghost {
+  opacity: 0.9;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
+}

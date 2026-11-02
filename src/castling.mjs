@@ -111,21 +111,20 @@ export function resolveRights(placement, highlighted, choices = {}) {
  * What the two buttons should look like for one side.
  *
  * The inference mark belongs *inside* the option it selected, not beside the
- * group: 「有 KQ 推断」 tells you both what we suggest and why it is a guess,
- * in the place you click.
+ * group, and it carries the reason as a tooltip. The letters themselves are
+ * deliberately not shown: 「有」 is the whole choice, and `KQ` on a button reads
+ * like a second thing to decide.
  *
  * @returns {{onSelected:boolean, offSelected:boolean, badge:"on"|"off"|null,
- *            letters:string, canHave:boolean, reason:string}}
+ *            canHave:boolean, reason:string}}
  */
 export function describeChoice(options, choice = "auto") {
   const inferred = options.defaultLetters !== "-";
-  const letters = inferred ? options.defaultLetters.replace(/-/g, "") : "";
   const onSelected = choice === "off" ? false : choice === "on" ? options.canHave : inferred;
   return {
     onSelected,
     offSelected: !onSelected,
     badge: choice === "auto" ? (inferred ? "on" : "off") : null,
-    letters: onSelected ? (choice === "on" ? options.letters : letters) : "",
     canHave: options.canHave,
     reason: options.reason,
   };

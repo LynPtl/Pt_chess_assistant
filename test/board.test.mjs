@@ -80,3 +80,9 @@ test("棋子图片不吃鼠标事件，点击要能穿透到它下面的方块",
     assert.match(tag, /pointer-events="none"/, `这个棋子会吞点击: ${tag}`);
   }
 });
+
+test("棋子图片带 data-at 下标，拖拽时能定位到它", () => {
+  const svg = renderBoardSvg("8/8/8/8/8/8/8/K6k", false, PIECES);
+  const at = [...svg.matchAll(/data-at="(\d+)"/g)].map((m) => Number(m[1]));
+  assert.deepEqual(at.sort((a, b) => a - b), [56, 63]); // a1 / h1
+});

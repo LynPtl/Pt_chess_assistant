@@ -55,3 +55,28 @@ test("摆位格式不对或下标越界时原样返回，不抛错", () => {
   assert.equal(stampSquare(START, 64, "P"), START);
   assert.equal(stampSquare(START, -1, "P"), START);
 });
+
+test("moveSquare：把棋子挪到空格子，原格变空", async () => {
+  const { moveSquare } = await import("../src/edit.mjs");
+  // e2 的白兵挪到 e4（52 → 36）
+  assert.equal(moveSquare(START, 52, 36), "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR");
+});
+
+test("moveSquare：目标有子时被顶掉（像摆棋那样覆盖）", async () => {
+  const { moveSquare } = await import("../src/edit.mjs");
+  // a1 的白车挪到 b8（56 → 1），原本 b8 是黑马
+  assert.equal(moveSquare(START, 56, 1), "rRbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/1NBQKBNR");
+});
+
+test("moveSquare：拖到原格、空格起手、越界都原样返回", async () => {
+  const { moveSquare } = await import("../src/edit.mjs");
+  assert.equal(moveSquare(START, 52, 52), START);
+  assert.equal(moveSquare(START, 36, 52), START, "起点是空格不该动");
+  assert.equal(moveSquare(START, -1, 5), START);
+  assert.equal(moveSquare(START, 5, 64), START);
+});
+
+test("moveSquare：摆位坏了也不抛错", async () => {
+  const { moveSquare } = await import("../src/edit.mjs");
+  assert.equal(moveSquare("nonsense", 0, 8), "nonsense");
+});

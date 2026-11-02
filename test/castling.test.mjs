@@ -101,7 +101,6 @@ test("describeChoice：推断落在哪个按钮上，就标在那个按钮里", 
   const auto = describeChoice(options, "auto");
   assert.equal(auto.onSelected, true);
   assert.equal(auto.badge, "on", "角标要在「有」里面");
-  assert.equal(auto.letters, "KQ", "「有」上要写出推出来的字母");
   assert.equal(auto.reason, options.reason);
 
   const userOff = describeChoice(options, "off");
@@ -115,14 +114,13 @@ test("describeChoice：推断是没有时，角标落在「无」里", async () 
   const auto = describeChoice(options, "auto");
   assert.equal(auto.onSelected, false);
   assert.equal(auto.badge, "off");
-  assert.equal(auto.letters, "", "没有可给的权利时「有」不显示字母");
   assert.equal(auto.canHave, false);
 });
 
-test("describeChoice：推断被高亮削掉一半时，字母只显示剩下那个", async () => {
+test("describeChoice：推断被高亮削掉一半时仍然算「有」", async () => {
   const { castlingOptions, describeChoice } = await import("../src/castling.mjs");
-  const options = castlingOptions(ITALIAN, "w", [H1]); // 动过 h1 → 只剩 Q
+  const options = castlingOptions(ITALIAN, "w", [H1]); // 动过 h1 → 只剩长易位
   const auto = describeChoice(options, "auto");
-  assert.equal(auto.onSelected, true);
-  assert.equal(auto.letters, "Q");
+  assert.equal(auto.onSelected, true, "还剩一项权利，就该选「有」");
+  assert.match(auto.reason, /h1/);
 });

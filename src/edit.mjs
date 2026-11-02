@@ -67,3 +67,22 @@ export function stampSquare(placement, index, piece) {
   cells[index] = piece;
   return collapse(cells);
 }
+
+/** Move whatever stands on `from` to `to`, leaving `from` empty. Like setting
+ *  up a position by hand: a piece already on `to` is simply replaced.
+ *
+ *  Same failure discipline as stampSquare — a bad index or a malformed
+ *  placement comes back untouched, because this runs inside a pointer handler.
+ */
+export function moveSquare(placement, from, to) {
+  if (!Number.isInteger(from) || !Number.isInteger(to)) return placement;
+  if (from < 0 || from > 63 || to < 0 || to > 63) return placement;
+  if (from === to) return placement;
+  const cells = expand(placement);
+  if (!cells) return placement;
+  const piece = cells[from];
+  if (!piece) return placement;
+  cells[to] = piece;
+  cells[from] = "";
+  return collapse(cells);
+}

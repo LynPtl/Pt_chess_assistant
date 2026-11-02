@@ -3,7 +3,7 @@ import { renderBoardSvg } from "./board.mjs";
 import { pickImageFile } from "./paste.mjs";
 import { composeFen, flipPlacement, isPlausible } from "./fen.mjs";
 import { castlingOptions, describeChoice, resolveRights } from "./castling.mjs";
-import { stampSquare } from "./edit.mjs";
+import { moveSquare, stampSquare } from "./edit.mjs";
 import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
 import { findHighlights, inferTurn, samplePoints } from "./highlight.mjs";
 import { evaluatePosition } from "./guards.mjs";
@@ -272,9 +272,7 @@ function castlingControls() {
         <span class="control-label">${label}易位</span>
         <div class="toggle">
           <button type="button" class="${view.onSelected ? (view.badge === "on" ? "auto-on" : "on") : ""}"
-            data-action="castle-${side}-on" ${onDisabled}>有${
-              view.onSelected && view.letters ? ` <span class="letters">${view.letters}</span>` : ""
-            }${badge("on")}</button>
+            data-action="castle-${side}-on" ${onDisabled}>有${badge("on")}</button>
           <button type="button" class="${view.offSelected ? (view.badge === "off" ? "auto-on" : "on") : ""}"
             data-action="castle-${side}-off">无${badge("off")}</button>
         </div>
@@ -365,7 +363,7 @@ function renderResult() {
         ${renderBoardSvg(boardPlacement, false, PIECE_URLS)}
         <figcaption>
           识别结果 · 平均置信度 ${confidence}%${state.edited ? " · 已手动修正" : ""}
-          <br /><span class="edit-hint">先在下面选棋子，再点格子盖上去 · 右键擦掉</span>
+          <br /><span class="edit-hint">点格子盖章 · 拖动棋子换位 · 右键擦掉</span>
         </figcaption>
         ${paletteHtml()}
       </figure>
@@ -464,11 +462,14 @@ function editSquare(screenIndex, piece) {
 }
 
 function bindBoardEditing() {
+  const board = app.querySelector("svg.board");
+
   for (const square of app.querySelectorAll("[data-square]")) {
     const index = Number(square.dataset.square);
     square.addEventListener("click", () => {
+      if (suppressClick()) return;
       if (state.activePiece === null) {
-        notice = { tone: "error", text: "先在下面的调色板里选一个棋子，再点格子。" };
+        notice = { tone: "error", text: "先在下面的调色板里选一个棋子；或者直接把棋子拖到目标格子。" };
         render();
         return;
       }
@@ -477,6 +478,10 @@ function bindBoardEditing() {
     square.addEventListener("contextmenu", (event) => {
       event.preventDefault();
       editSquare(index, "");
+    });
+    square.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 || state.activePiece !== null) return;
+      startDrag(event, index);
     });
   }
 
@@ -488,6 +493,97 @@ function bindBoardEditing() {
       render();
     });
   }
+
+  if (board) {
+    board.addEventListener("pointermove", moveDrag);
+    board.addEventListener("pointerup", endDrag);
+    board.addEventListener("pointercancel", cancelDrag);
+  }
+}
+
+/** Pointer position → board square index, using the SVG's own 8×8 viewBox. */
+function squareAtPoint(board, clientX, clientY) {
+  const rect = board.getBoundingClientRect();
+  const col = Math.floor(((clientX - rect.left) / rect.width) * 8);
+  const row = Math.floor(((clientY - rect.top) / rect.height) * 8);
+  if (col < 0 || col > 7 || row < 0 || row > 7) return null;
+  return row * 8 + col;
+}
+
+/** 拖拽换位：抓起一个子拖到另一格就是"移动"，这是摆棋最基本的动作。
+ *  选着调色板棋子时不触发拖拽——那时点击表示"盖章"。 */
+let drag = null;
+let clickSuppressedUntil = 0;
+
+function suppressClick() {
+  return Date.now() < clickSuppressedUntil;
+}
+
+function startDrag(event, index) {
+  const board = app.querySelector("svg.board");
+  const pieceImage = board?.querySelector(`[data-at="${index}"]`);
+  if (!board || !pieceImage) return;
+  event.preventDefault();
+  const ghost = pieceImage.cloneNode(true);
+  ghost.setAttribute("class", "drag-ghost");
+  ghost.removeAttribute("data-at");
+  board.append(ghost);
+  pieceImage.classList.add("drag-source");
+  board.setPointerCapture?.(event.pointerId);
+  drag = { from: index, ghost, moved: false, board };
+  positionGhost(event);
+}
+
+function positionGhost(event) {
+  if (!drag) return;
+  const rect = drag.board.getBoundingClientRect();
+  const x = ((event.clientX - rect.left) / rect.width) * 8 - 0.45;
+  const y = ((event.clientY - rect.top) / rect.height) * 8 - 0.45;
+  drag.ghost.setAttribute("x", String(x));
+  drag.ghost.setAttribute("y", String(y));
+}
+
+function moveDrag(event) {
+  if (!drag) return;
+  drag.moved = true;
+  positionGhost(event);
+}
+
+function endDrag(event) {
+  if (!drag) return;
+  const { from, board } = drag;
+  const target = squareAtPoint(board, event.clientX, event.clientY);
+  cleanupDrag();
+  if (!drag?.moved && target === from) {
+    // 没真的拖走：让 click 照常处理（盖章 / 提示）
+    return;
+  }
+  if (target !== null && target !== from) {
+    movePiece(from, target);
+  }
+}
+
+function cancelDrag() {
+  cleanupDrag();
+}
+
+function cleanupDrag() {
+  if (!drag) return;
+  drag.ghost.remove();
+  drag.board.querySelector(`[data-at="${drag.from}"]`)?.classList.remove("drag-source");
+  drag = null;
+  clickSuppressedUntil = Date.now() + 250;
+}
+
+function movePiece(from, to) {
+  const next = moveSquare(state.placement, state.flipped ? 63 - from : from, state.flipped ? 63 - to : to);
+  if (next === state.placement) {
+    clickSuppressedUntil = 0;
+    return;
+  }
+  notice = null;
+  state = { ...state, placement: next, edited: true };
+  render();
 }
 
 function setCastling(side, choice) {

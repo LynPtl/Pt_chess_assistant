@@ -51,12 +51,13 @@ export function renderBoardSvg(placement, flipped, pieces) {
     for (let col = 0; col < 8; col++) {
       const sourceRow = flipped ? 7 - row : row;
       const sourceCol = flipped ? 7 - col : col;
-      const piece = cells[sourceRow * 8 + sourceCol];
+      const index = sourceRow * 8 + sourceCol;
+      const piece = cells[index];
       const href = piece ? pieces[piece] : null;
       if (!href) continue;
       parts.push(
-        `<image href="${href}" x="${col + 0.05}" y="${row + 0.05}" width="0.9" height="0.9" ` +
-          `pointer-events="none"/>`,
+        `<image data-at="${index}" href="${href}" x="${col + 0.05}" y="${row + 0.05}" ` +
+          `width="0.9" height="0.9" pointer-events="none"/>`,
       );
     }
   }
