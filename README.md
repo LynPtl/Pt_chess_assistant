@@ -174,9 +174,34 @@ Maia 3 大约 7 秒加载完（第一次更久，因为要读模型）；之后�
 `start.bat` 本身是纯 ASCII 的（cmd 按控制台代码页读 .bat，中文写进去容易乱码甚至
 导致命令解析出错），所有中文提示都由 Node 输出。
 
-### 关掉
+### 停止服务
 
-关掉那个黑色命令行窗口就行，浏览器标签页可以留着下次再用（刷新即可）。
+**最直接：关掉那个黑色窗口**（点 X，或 `Ctrl` + `C` 再按任意键）。node 就活在那个控制台里，
+窗口一关它就停了。浏览器标签页可以留着，下次启动后刷新即可。
+
+万一窗口找不到了 / 不确定还在不在跑，双击 **`stop.bat`**：它会查 8787 上是谁在监听，
+确认是 `node.exe` 才杀，并打印结果。
+
+```
+[.] port 8787 is held by PID 22100
+[.] stopped mychess (PID 22100)
+```
+
+如果占用者不是 node（比如别的程序恰好用了 8787），它会**拒绝**动手并显示是谁：
+
+```
+[!] that process is not node.exe, so it is not mychess.
+    refusing to kill it. details:
+Image Name                     PID Session Name        Session#    Mem Usage
+python.exe                     180 Console                    1     22,768 K
+```
+
+命令行等价物：
+
+```bat
+netstat -ano | findstr ":8787" | findstr LISTENING   :: 看占用者的 PID
+taskkill /F /PID <那个PID>                            :: 停掉它
+```
 
 
 ## 在 En Croissant 里接上 Maia 3
