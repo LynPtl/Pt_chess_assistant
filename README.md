@@ -113,29 +113,44 @@ set MYCHESS_NO_OPEN=1 && npm start    :: 不自动开浏览器
 
 ## 在 En Croissant 里接上 Maia 3
 
-Maia 3 是标准 UCI 引擎，装好之后 En Croissant 里当成普通引擎加即可。
+Maia 3 是标准 UCI 引擎。**已经在本机装好了**（用独立 venv，没污染全局 Python）：
+
+| | |
+|---|---|
+| venv | `C:/Users/ptlan/AppData/Local/maia3-venv` |
+| 引擎可执行 | `C:/Users/ptlan/AppData/Local/maia3-venv/Scripts/maia3-5m.exe` |
+| checkpoint 缓存 | `C:/Users/ptlan/.cache/huggingface/hub/models--UofTCSSLab--Maia3-5M/` |
+| En Croissant 引擎列表 | `%APPDATA%/org.encroissant.app/engines/engines.json`（已有 Stockfish 19 与 Maia 3 (5M)）|
+
+装法（要重装或换机型时照这个来）：
 
 ```bash
+python -m venv C:/Users/ptlan/AppData/Local/maia3-venv
+C:/Users/ptlan/AppData/Local/maia3-venv/Scripts/python.exe -m pip install torch   --index-url https://download.pytorch.org/whl/cpu        # CPU 版 ~200MB，2 分钟
 git clone https://github.com/CSSLab/maia3.git
-cd maia3
-python -m pip install .            # 需要 torch；CPU 版约 200MB，见下
-maia3-cache --model maia3-5m       # 预下 checkpoint，否则引擎启动可能超时
+C:/Users/ptlan/AppData/Local/maia3-venv/Scripts/python.exe -m pip install ./maia3
+C:/Users/ptlan/AppData/Local/maia3-venv/Scripts/maia3-cache.exe --model maia3-5m
 ```
 
-想省空间就装 CPU 版 torch：
+**实测（本机 i5-11300H）**：`uci`/`uciok` 立刻返回，`isready` 后约 7 秒加载完模型并 `readyok`，
+`go nodes 1` 给出 5 条 MultiPV 与 WDL，`bestmove e1g1`（意大利开局里 1500 Elo 会走的着法）。
 
-```bash
-python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+```
+info depth 1 multipv 1 score cp 26 wdl 502 22 476 pv e1g1
+info depth 1 multipv 2 score cp 53 wdl 515 23 462 pv d2d3
+...
+bestmove e1g1
 ```
 
-然后在 En Croissant：Engines → 添加 UCI 引擎 → 命令填 `maia3-5m`
-（用 `where maia3-5m` 找完整路径），**参数留空**。别把 `.pt` 文件填进去，
-也别加 `--model`——预设可执行文件已经带好了架构参数。
+在 En Croissant 里启用：打开一个局面 → 右侧 **Analysis** 标签 → **Engines** 子标签 →
+点底部 **Manage Engines** 左边的选择器图标（☰ 状）→ 勾选 **Maia 3 (5M)**。
 
-Maia 3 的 `MultiPV` 给出的是"人类大概会走的几步"，`Elo`/`SelfElo`/`OppoElo`
-调的是预测的对象；它给的分是从 WDL 换出来的，**不是 Stockfish 那种搜索分**。
+> 注意：En Croissant 对命令行打开的局面**不会自动启用引擎**，每开一个新标签页都要勾一次。
+> 这点在本机实测过（面板显示 `Engine isn't enabled`）。
 
----
+Maia 3 的 `MultiPV` 给的是"人类大概会走的几步"，`Elo`/`SelfElo`/`OppoElo` 调预测对象；
+它给的分是从 WDL 换出来的，**不是 Stockfish 那种搜索分**。`Threads`/`Hash` 对它不存在，
+En Croissant 发过去会被忽略（无害）。
 
 ## 回归测试
 
