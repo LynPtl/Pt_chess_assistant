@@ -51,7 +51,7 @@ export function renderBoardSvg(placement, flipped) {
       if (!piece) continue;
       const white = piece === piece.toUpperCase();
       parts.push(
-        `<text x="${col}" y="${row}" font-size="0.86" text-anchor="middle" ` +
+        `<text x="${col + 0.5}" y="${row + 0.5}" font-size="0.86" text-anchor="middle" ` +
           `dominant-baseline="central" fill="${white ? "#fff" : "#111"}" ` +
           `stroke="${white ? "#111" : "#fff"}" stroke-width="0.035">${glyphFor(piece)}</text>`,
       );

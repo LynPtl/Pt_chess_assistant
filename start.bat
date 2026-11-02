@@ -12,5 +12,5 @@ node src/server.mjs
 goto :eof
 :error
 echo.
-echo 启动失败。请确认已安装 Node.js 20+，然后重试。
+echo 启动失败。请确认已安装 Node.js 22+，然后重试。
 pause
