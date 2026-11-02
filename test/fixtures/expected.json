@@ -43,5 +43,10 @@
     "fen": null,
     "expect": "no-board",
     "orientation": null
+  },
+  "lichess-user-1816.png": {
+    "fen": "r2q1rk1/pp2ppbp/2P3p1/2n1n3/2P5/P1N4P/1PB1QPP1/R1B2RK1",
+    "expect": "match",
+    "orientation": "white"
   }
 }

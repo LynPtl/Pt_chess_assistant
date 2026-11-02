@@ -4,6 +4,7 @@ import { pickImageFile } from "./paste.mjs";
 import { composeFen, flipPlacement, isPlausible } from "./fen.mjs";
 import { stampSquare } from "./edit.mjs";
 import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
+import { findHighlights, inferTurn, samplePoints } from "./highlight.mjs";
 import { evaluatePosition } from "./guards.mjs";
 import { judgeFixture } from "./fixtures.mjs";
 import { releaseResultUrl } from "./urls.mjs";
@@ -69,6 +70,60 @@ async function openEnCroissant() {
   render();
 }
 
+/** fenshot downscales anything larger than this before detecting the board, so
+ *  its corner coordinates live in that scaled space. */
+const MAX_DETECT_DIM = 1600;
+
+/** Average the colour around each of the 4 inset points of every square. */
+function sampleSquareColours(bitmap, corners) {
+  const scale = Math.min(1, MAX_DETECT_DIM / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(bitmap, 0, 0);
+
+  const points = samplePoints(
+    corners.x0 / scale,
+    corners.y0 / scale,
+    (corners.x1 - corners.x0) / scale,
+    (corners.y1 - corners.y0) / scale,
+  );
+  const patch = 6;
+  return points.map((cell) => {
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    let n = 0;
+    for (const [px, py] of cell) {
+      const d = ctx.getImageData(Math.round(px - patch / 2), Math.round(py - patch / 2), patch, patch).data;
+      for (let i = 0; i < d.length; i += 4) {
+        r += d[i];
+        g += d[i + 1];
+        b += d[i + 2];
+        n++;
+      }
+    }
+    return { r: r / n, g: g / n, b: b / n };
+  });
+}
+
+/** Chess sites tint the two squares of the move just played. If the tinted
+ *  square that still holds a piece is white, White just moved, so it is
+ *  Black's turn. Only ever a suggestion — the toggle stays user-controlled. */
+async function inferTurnFromHighlights(blob, scan, placement) {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const colours = sampleSquareColours(bitmap, scan.corners);
+    bitmap.close?.();
+    const verdict = inferTurn(placement, findHighlights(colours));
+    return verdict;
+  } catch (err) {
+    console.debug("高亮格推断失败（不影响其它功能）", err);
+    return null;
+  }
+}
+
 export async function scanImage(blob) {
   releaseResultUrl(state);
   state = { kind: "scanning" };
@@ -82,17 +137,20 @@ export async function scanImage(blob) {
       return;
     }
     const { placement, orientation } = resolveOrientation(scan.placement);
+    const inferred = await inferTurnFromHighlights(blob, scan, placement);
     state = {
       kind: "result",
       scan,
       placement,
       orientation,
+      turnInferred: Boolean(inferred),
+      inferredMover: inferred?.mover ?? null,
       imageUrl: URL.createObjectURL(blob),
       // Pixels cannot carry side to move or history, so these are the user's
       // to confirm: white to move, castling inferred from home squares.
       // `flipped` starts false because resolveOrientation already returned the
       // corrected placement; flipping it is the override for a wrong call.
-      turn: "w",
+      turn: inferred?.turn ?? "w",
       castling: "inferred",
       flipped: false,
       edited: false,
@@ -278,7 +336,9 @@ function renderResult() {
 
       <div class="controls">
         <div class="control">
-          <span class="control-label">走子方</span>
+          <span class="control-label">走子方${
+            state.turnInferred ? `（高亮格推断：${state.inferredMover === "w" ? "白" : "黑"}刚走）` : ""
+          }</span>
           <div class="toggle">
             ${toggleButton("白方", state.turn === "w", "turn-w")}
             ${toggleButton("黑方", state.turn === "b", "turn-b")}
@@ -324,8 +384,8 @@ function renderResult() {
     "refresh-health": refreshHealth,
     "open-app": openEnCroissant,
     shutdown,
-    "turn-w": () => setOption({ turn: "w" }),
-    "turn-b": () => setOption({ turn: "b" }),
+    "turn-w": () => setOption({ turn: "w", turnInferred: false }),
+    "turn-b": () => setOption({ turn: "b", turnInferred: false }),
     "castle-inferred": () => setOption({ castling: "inferred" }),
     "castle-none": () => setOption({ castling: "none" }),
     flip: () => setOption({ flipped: !state.flipped }),
@@ -553,6 +613,9 @@ async function runSelfTest() {
           castling: state.castling,
           turn: state.turn,
           flipped: state.flipped,
+          corners: state.scan.corners,
+          turnInferred: state.turnInferred,
+          inferredMover: state.inferredMover,
           verdict: verdictFor(currentFen()),
           handoffAvailable: health.configured,
           dom: {
