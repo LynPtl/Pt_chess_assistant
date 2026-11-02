@@ -200,3 +200,43 @@ test("POST /open 拒绝 GET", async (t) => {
   const base = await serve(t, { enCroissantPath: ws.exe, pgnTempDir: ws.pgnTempDir, logPath: ws.logPath }, () => {});
   assert.equal((await fetch(`${base}/open`)).status, 405);
 });
+
+test("POST /shutdown 返回 200 并触发一次关机回调", async (t) => {
+  const ws = makeWorkspace();
+  let stopped = 0;
+  const server = createServer(
+    { enCroissantPath: ws.exe, port: 0, pgnTempDir: ws.pgnTempDir, logPath: ws.logPath },
+    { staticRoot: mkdtempSync(join(tmpdir(), "mychess-sd-")), onShutdown: () => stopped++ },
+  );
+  server.listen(0, "127.0.0.1");
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  await new Promise((r) => server.once("listening", r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  const res = await fetch(`${base}/shutdown`, { method: "POST" });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { ok: true });
+  assert.equal(stopped, 1);
+});
+
+test("GET /shutdown 返回 405 且不关机", async (t) => {
+  const ws = makeWorkspace();
+  let stopped = 0;
+  const server = createServer(
+    { enCroissantPath: ws.exe, port: 0, pgnTempDir: ws.pgnTempDir, logPath: ws.logPath },
+    { staticRoot: mkdtempSync(join(tmpdir(), "mychess-sd2-")), onShutdown: () => stopped++ },
+  );
+  server.listen(0, "127.0.0.1");
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  await new Promise((r) => server.once("listening", r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  assert.equal((await fetch(`${base}/shutdown`)).status, 405);
+  assert.equal(stopped, 0);
+});

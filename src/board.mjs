@@ -35,9 +35,15 @@ export function renderBoardSvg(placement, flipped) {
 
   for (let row = 0; row < 8; row++) {
     for (let col = 0; col < 8; col++) {
+      // data-square is the FEN index of the square shown at this screen cell,
+      // so the caller can map a click back to the placement regardless of flip.
+      const sourceRow = flipped ? 7 - row : row;
+      const sourceCol = flipped ? 7 - col : col;
+      const index = sourceRow * 8 + sourceCol;
       const light = (row + col) % 2 === 0;
       parts.push(
-        `<rect x="${col}" y="${row}" width="1" height="1" fill="${light ? LIGHT : DARK}"/>`,
+        `<rect class="sq" data-square="${index}" x="${col}" y="${row}" ` +
+          `width="1" height="1" fill="${light ? LIGHT : DARK}"/>`,
       );
     }
   }

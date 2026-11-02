@@ -2,6 +2,7 @@ import { createRecognizer, resolveOrientation } from "@scoriiu/fenshot";
 import { renderBoardSvg } from "./board.mjs";
 import { pickImageFile } from "./paste.mjs";
 import { composeFen, flipPlacement, isPlausible } from "./fen.mjs";
+import { cycleSquare } from "./edit.mjs";
 import { evaluatePosition } from "./guards.mjs";
 import { judgeFixture } from "./fixtures.mjs";
 import { releaseResultUrl } from "./urls.mjs";
@@ -38,6 +39,19 @@ async function refreshHealth() {
   } catch (err) {
     health = { configured: false, reason: `连不上本地服务：${err.message}` };
   }
+  render();
+}
+
+async function shutdown() {
+  if (!window.confirm("停止本地服务？停止后这个页面就不能再识别了，要用就重新运行 start.bat。")) return;
+  try {
+    await fetch("/shutdown", { method: "POST" });
+  } catch {
+    /* 进程已经没了也算停成功 */
+  }
+  state = { kind: "idle" };
+  notice = null;
+  health = { configured: false, reason: "服务已停止。重新运行 start.bat 就能再用。" };
   render();
 }
 
@@ -80,6 +94,7 @@ export async function scanImage(blob) {
       turn: "w",
       castling: "inferred",
       flipped: false,
+      edited: false,
     };
   } catch (err) {
     state = { kind: "noboard", message: `识别出错：${err.message}` };
@@ -170,15 +185,18 @@ function toggleButton(label, active, action) {
 /** Status strip: whether the handoff is wired, why not when it isn't, and the
  *  two things a user can do about it without leaving the page. */
 function statusStrip() {
+  const stop = `<button type="button" class="danger" data-action="shutdown">停止服务</button>`;
   if (health.configured) {
     return `<div class="service-status ok">
       <span>● 已连上 En Croissant</span>
       <button type="button" data-action="open-app">打开 En Croissant</button>
+      ${stop}
     </div>`;
   }
   return `<div class="service-status bad">
     <span>● 未连上 En Croissant —— ${escapeHtml(health.reason ?? "")}</span>
     <button type="button" data-action="refresh-health">重新检测</button>
+    ${stop}
   </div>`;
 }
 
@@ -205,7 +223,7 @@ function renderIdleOrScanning() {
     if (file) void scanImage(file);
     event.target.value = "";
   });
-  bind({ "refresh-health": refreshHealth, "open-app": openEnCroissant });
+  bind({ "refresh-health": refreshHealth, "open-app": openEnCroissant, shutdown });
 }
 
 function renderNoBoard() {
@@ -243,7 +261,10 @@ function renderResult() {
       </figure>
       <figure class="board-figure">
         ${renderBoardSvg(effectivePlacement, false)}
-        <figcaption>识别结果 · 平均置信度 ${confidence}%</figcaption>
+        <figcaption>
+          识别结果 · 平均置信度 ${confidence}%${state.edited ? " · 已手动修正" : ""}
+          <br /><span class="edit-hint">点格子换棋子 · 右键往回退</span>
+        </figcaption>
       </figure>
     </section>
 
@@ -291,18 +312,46 @@ function renderResult() {
       }
     </section>`;
 
+  bindBoardEditing();
+
   bind({
     reset,
     copy: copyFen,
     send: sendToEnCroissant,
     "refresh-health": refreshHealth,
     "open-app": openEnCroissant,
+    shutdown,
     "turn-w": () => setOption({ turn: "w" }),
     "turn-b": () => setOption({ turn: "b" }),
     "castle-inferred": () => setOption({ castling: "inferred" }),
     "castle-none": () => setOption({ castling: "none" }),
     flip: () => setOption({ flipped: !state.flipped }),
   });
+}
+
+/** Clicking a square steps its piece forward, right-clicking steps back. The
+ *  board is re-rendered from state each time, so editing and the FEN can never
+ *  disagree. */
+function editSquare(screenIndex, direction) {
+  // The board is drawn from the effective (possibly flipped) placement and
+  // numbered in that same orientation, so map back before touching state.
+  const placementIndex = state.flipped ? 63 - screenIndex : screenIndex;
+  const next = cycleSquare(state.placement, placementIndex, direction);
+  if (next === state.placement) return;
+  notice = null;
+  state = { ...state, placement: next, edited: true };
+  render();
+}
+
+function bindBoardEditing() {
+  for (const square of app.querySelectorAll("[data-square]")) {
+    const index = Number(square.dataset.square);
+    square.addEventListener("click", () => editSquare(index, 1));
+    square.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      editSquare(index, -1);
+    });
+  }
 }
 
 function setOption(patch) {

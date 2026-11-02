@@ -48,3 +48,17 @@ test("run-length 数字被正确展开", () => {
   const cells = pieceCells(renderBoardSvg("4k3/8/8/8/8/8/8/8", false));
   assert.deepEqual(cells.map((c) => ({ x: c.x, y: c.y })), [{ x: 4.5, y: 0.5 }]);
 });
+
+test("每个格子都带 data-square 下标，方便点击编辑", () => {
+  const svg = renderBoardSvg("8/8/8/8/8/8/8/8", false);
+  const indices = [...svg.matchAll(/data-square="(\d+)"/g)].map((m) => Number(m[1]));
+  assert.equal(indices.length, 64);
+  assert.deepEqual(indices, Array.from({ length: 64 }, (_, i) => i));
+});
+
+test("翻转后 data-square 跟着格子走，不跟着数组位置走", () => {
+  const svg = renderBoardSvg("8/8/8/8/8/8/8/8", true);
+  const first = svg.match(/data-square="(\d+)"/);
+  // 翻转时屏幕左上角是 h1，即下标 63
+  assert.equal(Number(first[1]), 63);
+});

@@ -209,6 +209,19 @@ export function createServer(config, deps = {}) {
       return;
     }
 
+    if (pathname === "/shutdown") {
+      if (req.method !== "POST") {
+        json(res, 405, { ok: false, error: "只接受 POST" });
+        return;
+      }
+      res.on("finish", () => {
+        const stop = deps.onShutdown ?? (() => setTimeout(() => process.exit(0), 50));
+        stop();
+      });
+      json(res, 200, { ok: true });
+      return;
+    }
+
     if (pathname === "/open") {
       if (req.method !== "POST") {
         json(res, 405, { ok: false, error: "只接受 POST" });

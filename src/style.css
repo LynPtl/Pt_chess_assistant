@@ -315,3 +315,26 @@ table.fixtures tr.pass td:nth-child(3) {
   padding: 4px 10px;
   font-size: 13px;
 }
+
+.board .sq {
+  cursor: pointer;
+}
+
+.board .sq:hover {
+  fill: var(--accent);
+  fill-opacity: 0.35;
+}
+
+.edit-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.service-status button.danger {
+  color: #b3261e;
+  border-color: #b3261e;
+}
+
+.service-status button + button {
+  margin-left: 0;
+}
