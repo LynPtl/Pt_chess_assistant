@@ -1,8 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cycleSquare, squareToIndex } from "../src/edit.mjs";
+import { stampSquare, squareToIndex, PIECE_CHARS } from "../src/edit.mjs";
 
-// 索引与棋盘渲染一致：0 = a8，63 = h1（即 FEN 摆位从左到右、从上到下）。
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 
 test("squareToIndex 把 a8/h1/e4 映射到正确的线性下标", () => {
@@ -11,40 +10,48 @@ test("squareToIndex 把 a8/h1/e4 映射到正确的线性下标", () => {
   assert.equal(squareToIndex(4, 4), 36); // e4
 });
 
-test("空格子点一下变成白兵，再右键退回空格", () => {
-  const empty = "8/8/8/8/8/8/8/8";
-  const withPawn = cycleSquare(empty, squareToIndex(4, 4), 1); // e4
-  // 第 5 行是 rank 4，所以 e4 的兵写成 8/8/8/8/4P3/8/8/8
-  assert.equal(withPawn, "8/8/8/8/4P3/8/8/8");
-  assert.equal(cycleSquare(withPawn, squareToIndex(4, 4), -1), empty);
+test("PIECE_CHARS 是 12 个棋子加空串", () => {
+  assert.equal(PIECE_CHARS.length, 13);
+  assert.deepEqual(
+    [...PIECE_CHARS].sort(),
+    ["", "B", "K", "N", "P", "Q", "R", "b", "k", "n", "p", "q", "r"].sort(),
+  );
 });
 
-test("白兵点一下变白马，白王点一下变黑兵", () => {
-  assert.equal(cycleSquare("8/8/8/8/8/8/8/P7", 56, 1), "8/8/8/8/8/8/8/N7");
-  assert.equal(cycleSquare("8/8/8/8/8/8/8/K7", 56, 1), "8/8/8/8/8/8/8/p7");
+test("往空格子盖一个白兵", () => {
+  assert.equal(stampSquare("8/8/8/8/8/8/8/8", 36, "P"), "8/8/8/8/4P3/8/8/8"); // e4
 });
 
-test("黑王点一下变回空格", () => {
-  assert.equal(cycleSquare("k7/8/8/8/8/8/8/8", 0, 1), "8/8/8/8/8/8/8/8");
+test("盖子会替换原有棋子", () => {
+  assert.equal(stampSquare(START, 36, "q"), "rnbqkbnr/pppppppp/8/8/4q3/8/PPPPPPPP/RNBQKBNR");
 });
 
-test("反向循环是正向的逆操作", () => {
-  const once = cycleSquare("8/8/8/8/8/8/8/P7", 56, 1);
-  assert.equal(cycleSquare(once, 56, -1), "8/8/8/8/8/8/8/P7");
+test("盖空串等于擦掉", () => {
+  assert.equal(stampSquare(START, 4, ""), "rnbq1bnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"); // e8
 });
 
-test("连点 13 下回到原样", () => {
-  let placement = "8/8/8/8/8/8/8/N7";
-  for (let i = 0; i < 13; i++) placement = cycleSquare(placement, 56, 1);
-  assert.equal(placement, "8/8/8/8/8/8/8/N7");
+test("首格和末格都能改", () => {
+  assert.equal(stampSquare("8/8/8/8/8/8/8/8", 0, "r"), "r7/8/8/8/8/8/8/8");
+  assert.equal(stampSquare("8/8/8/8/8/8/8/8", 63, "Q"), "8/8/8/8/8/8/8/7Q");
 });
 
-test("改一格不动别的格子", () => {
-  const after = cycleSquare(START, squareToIndex(4, 0), 1); // e8 上的黑王
-  assert.equal(after, "rnbq1bnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+test("盖完的 run-length 仍然合法", () => {
+  const out = stampSquare("8/8/8/8/8/8/8/8", 4, "N"); // index 4 = e8
+  assert.equal(out, "4N3/8/8/8/8/8/8/8");
+  assert.equal(out.split("/").length, 8);
+  for (const rank of out.split("/")) {
+    const width = [...rank].reduce((n, ch) => n + (ch >= "1" && ch <= "8" ? Number(ch) : 1), 0);
+    assert.equal(width, 8, rank);
+  }
 });
 
-test("摆位格式不对时原样返回，不抛错", () => {
-  assert.equal(cycleSquare("nonsense", 0, 1), "nonsense");
-  assert.equal(cycleSquare("8/8/8", 0, 1), "8/8/8");
+test("未知棋子字符原样返回", () => {
+  assert.equal(stampSquare(START, 36, "X"), START);
+});
+
+test("摆位格式不对或下标越界时原样返回，不抛错", () => {
+  assert.equal(stampSquare("nonsense", 0, "P"), "nonsense");
+  assert.equal(stampSquare("8/8/8", 0, "P"), "8/8/8");
+  assert.equal(stampSquare(START, 64, "P"), START);
+  assert.equal(stampSquare(START, -1, "P"), START);
 });

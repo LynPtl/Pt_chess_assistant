@@ -127,16 +127,20 @@ C:\Program Files\En Croissant\en-croissant.exe
 
 ### 3. 认错了就当场改
 
-**右边的棋盘是浏览器现画的 SVG，不是你的截图**（左边那张才是截图）。它整格都可以点，
-点棋子本身也有效——认错了一个子，直接修：
+**右边的棋盘是浏览器现画的 SVG，不是你的截图**（左边那张才是截图），用的是
+lichess 的 cburnett 棋子素材，黑白一眼能分开。
 
-- **左键点格子**：空 → 白兵 → 白马 → 白象 → 白车 → 白后 → 白王 → 黑兵 → 黑马 → 黑象 → 黑车 → 黑后 → 黑王 → 空
-- **右键点格子**：往回退一格
+改法和 lichess / chess.com 的棋盘编辑器一样：**先选子，再盖章**。
 
-不用点到"对"为止——点过头就往回退。改完上面的 FEN、易位权、合法性警告会**立刻重算**
-（比如把 a8 的黑车改成别的，易位权会从 `KQkq` 变成 `KQk`），改好了再送。
+1. 棋盘下面一排调色板：白 ♔♕♖♗♘♙，黑 ♚♛♜♝♞♟，最后一个是擦除 ⌫
+2. 点一个棋子 → 它高亮（再点一次取消选中）
+3. 点棋盘上的格子 → 就把那个子盖上去
+4. **右键点格子 → 直接擦掉**（不用先选擦除）
 
-标题会标上「已手动修正」，方便你记住这局面动过手。
+改完 FEN、易位权、合法性警告会**立刻重算**（比如把 a8 的黑车擦掉，易位权会从
+`KQkq` 变成 `KQk`），改好了再送。标题会标上「已手动修正」。
+
+忘了先选子就点格子？它会提示「先在下面的调色板里选一个棋子」，不会静默无反应。
 
 ### 4. 核对这三件事
 
@@ -289,6 +293,12 @@ node scripts/browser-check.mjs "http://127.0.0.1:8787/?fixtures=1"
 
 测试图来自 [scoriiu/fenshot](https://github.com/scoriiu/fenshot) 的
 `packages/fenshot/tests/fixtures/`（MIT）。
+
+识别引擎是 [@scoriiu/fenshot](https://github.com/scoriiu/fenshot)（MIT）；
+棋盘棋子是本仓库 `src/pieces/cburnett/` 里的 **cburnett** 棋子集，
+作者 Colin M.L. Burnett，许可 **GPLv2+**，取自
+[lichess-org/lila](https://github.com/lichess-org/lila) 的 `public/piece/cburnett`。
+详见 `src/pieces/NOTICE.md`。
 
 ---
 

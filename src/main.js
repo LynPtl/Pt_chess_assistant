@@ -2,7 +2,8 @@ import { createRecognizer, resolveOrientation } from "@scoriiu/fenshot";
 import { renderBoardSvg } from "./board.mjs";
 import { pickImageFile } from "./paste.mjs";
 import { composeFen, flipPlacement, isPlausible } from "./fen.mjs";
-import { cycleSquare } from "./edit.mjs";
+import { stampSquare } from "./edit.mjs";
+import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
 import { evaluatePosition } from "./guards.mjs";
 import { judgeFixture } from "./fixtures.mjs";
 import { releaseResultUrl } from "./urls.mjs";
@@ -95,6 +96,7 @@ export async function scanImage(blob) {
       castling: "inferred",
       flipped: false,
       edited: false,
+      activePiece: null,
     };
   } catch (err) {
     state = { kind: "noboard", message: `识别出错：${err.message}` };
@@ -260,15 +262,16 @@ function renderResult() {
         <figcaption>你的截图</figcaption>
       </figure>
       <figure class="board-figure">
-        ${renderBoardSvg(effectivePlacement, false)}
+        ${renderBoardSvg(effectivePlacement, false, PIECE_URLS)}
         <figcaption>
           识别结果 · 平均置信度 ${confidence}%${state.edited ? " · 已手动修正" : ""}
-          <br /><span class="edit-hint">点格子换棋子 · 右键往回退</span>
+          <br /><span class="edit-hint">先在下面选棋子，再点格子盖上去 · 右键擦掉</span>
         </figcaption>
       </figure>
     </section>
 
     <section class="under-board">
+      ${paletteHtml()}
       ${banners}
       ${noticeHtml}
       <code class="placement">${escapeHtml(fen)}</code>
@@ -329,14 +332,23 @@ function renderResult() {
   });
 }
 
-/** Clicking a square steps its piece forward, right-clicking steps back. The
- *  board is re-rendered from state each time, so editing and the FEN can never
- *  disagree. */
-function editSquare(screenIndex, direction) {
+function paletteHtml() {
+  const button = (piece) =>
+    `<button type="button" class="palette-btn ${state.activePiece === piece ? "on" : ""}" ` +
+    `data-piece="${piece}" title="${piece === "" ? "擦除" : piece}">` +
+    (piece === "" ? "⌫" : `<img src="${PIECE_URLS[piece]}" alt="${piece}" />`) +
+    `</button>`;
+  return `<div class="palette">${[...PALETTE, ""].map(button).join("")}</div>`;
+}
+
+/** Same primitive for both buttons: stamp the selected piece (or erase). The
+ *  board is re-rendered from state each time, so what you see and the FEN can
+ *  never disagree. */
+function editSquare(screenIndex, piece) {
   // The board is drawn from the effective (possibly flipped) placement and
   // numbered in that same orientation, so map back before touching state.
   const placementIndex = state.flipped ? 63 - screenIndex : screenIndex;
-  const next = cycleSquare(state.placement, placementIndex, direction);
+  const next = stampSquare(state.placement, placementIndex, piece);
   if (next === state.placement) return;
   notice = null;
   state = { ...state, placement: next, edited: true };
@@ -346,10 +358,26 @@ function editSquare(screenIndex, direction) {
 function bindBoardEditing() {
   for (const square of app.querySelectorAll("[data-square]")) {
     const index = Number(square.dataset.square);
-    square.addEventListener("click", () => editSquare(index, 1));
+    square.addEventListener("click", () => {
+      if (state.activePiece === null) {
+        notice = { tone: "error", text: "先在下面的调色板里选一个棋子，再点格子。" };
+        render();
+        return;
+      }
+      editSquare(index, state.activePiece);
+    });
     square.addEventListener("contextmenu", (event) => {
       event.preventDefault();
-      editSquare(index, -1);
+      editSquare(index, "");
+    });
+  }
+
+  for (const button of app.querySelectorAll("[data-piece]")) {
+    button.addEventListener("click", () => {
+      const piece = button.dataset.piece;
+      state = { ...state, activePiece: state.activePiece === piece ? null : piece };
+      notice = null;
+      render();
     });
   }
 }

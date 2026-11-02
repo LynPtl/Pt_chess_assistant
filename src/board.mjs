@@ -1,17 +1,16 @@
-/** Read-only board for the confirm step. Deliberately dumb: no drag, no
- *  legal-move highlighting, no engine arrows — En Croissant is where the
- *  position gets played. This only has to make "did it read the right
- *  pieces?" answerable at a glance. Unicode glyphs keep it dependency-free. */
-
-const WHITE = { K: "♔", Q: "♕", R: "♖", B: "♗", N: "♘", P: "♙" };
-const BLACK = { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" };
+/** Read-only board for the confirm step, drawn as SVG.
+ *
+ *  Pieces are the cburnett set from lichess (see ./pieces/NOTICE.md) so white
+ *  and black read apart at a glance; Unicode glyphs looked nearly identical at
+ *  this size. The caller supplies the URLs because Vite hashes assets.
+ *
+ *  Editing lives outside this module: every square carries `data-square` with
+ *  the FEN index it shows, and piece images are pointer-events:none so a click
+ *  always lands on the square underneath.
+ */
 
 const LIGHT = "#eeeed2";
 const DARK = "#769656";
-
-function glyphFor(piece) {
-  return WHITE[piece] ?? BLACK[piece] ?? "";
-}
 
 /** Expand a FEN board field into 64 cells, index 0 = a8, index 63 = h1. */
 function expandPlacement(placement) {
@@ -28,7 +27,7 @@ function expandPlacement(placement) {
   return cells;
 }
 
-export function renderBoardSvg(placement, flipped) {
+export function renderBoardSvg(placement, flipped, pieces) {
   const cells = expandPlacement(placement);
   const parts = [];
   parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8" class="board" role="img">');
@@ -50,20 +49,14 @@ export function renderBoardSvg(placement, flipped) {
 
   for (let row = 0; row < 8; row++) {
     for (let col = 0; col < 8; col++) {
-      // Non-flipped: row 0 is rank 8, col 0 is file a.
       const sourceRow = flipped ? 7 - row : row;
       const sourceCol = flipped ? 7 - col : col;
       const piece = cells[sourceRow * 8 + sourceCol];
-      if (!piece) continue;
-      const white = piece === piece.toUpperCase();
+      const href = piece ? pieces[piece] : null;
+      if (!href) continue;
       parts.push(
-        // pointer-events="none" so a click on a piece reaches the square rect
-        // underneath: without it, clicking a piece does nothing at all and the
-        // board feels like a picture.
-        `<text x="${col + 0.5}" y="${row + 0.5}" font-size="0.86" text-anchor="middle" ` +
-          `pointer-events="none" ` +
-          `dominant-baseline="central" fill="${white ? "#fff" : "#111"}" ` +
-          `stroke="${white ? "#111" : "#fff"}" stroke-width="0.035">${glyphFor(piece)}</text>`,
+        `<image href="${href}" x="${col + 0.05}" y="${row + 0.05}" width="0.9" height="0.9" ` +
+          `pointer-events="none"/>`,
       );
     }
   }

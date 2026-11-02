@@ -1,13 +1,15 @@
 /** Hand-editing the recognized position.
  *
  *  A recognizer that is confidently wrong is worse than useless: without this,
- *  the only options are "send a wrong position" or "start over". Cycling a
- *  square through empty → P N B R Q K → p n b r q k → empty fixes a handful of
- *  misread pieces in a few clicks, and it is the same 13 states the FEN board
- *  field already holds.
+ *  the only options are "send a wrong position" or "start over".
+ *
+ *  The interaction is the one every board editor uses — pick a piece from the
+ *  palette, then click the squares you want it on. `stampSquare` is the whole
+ *  edit primitive; the cycling alternative was rejected because changing one
+ *  square took up to twelve clicks and gave no preview of what came next.
  */
 
-const CYCLE = ["", "P", "N", "B", "R", "Q", "K", "p", "n", "b", "r", "q", "k"];
+export const PIECE_CHARS = ["", "P", "N", "B", "R", "Q", "K", "p", "n", "b", "r", "q", "k"];
 
 /** Linear index 0..63 with 0 = a8 and 63 = h1 — the same order the FEN board
  *  field is written in, and the order renderBoardSvg draws in. */
@@ -54,15 +56,14 @@ function collapse(cells) {
   return rows.join("/");
 }
 
-/** Step the piece on `index` forward (+1) or backward (-1) through the cycle.
- *  A malformed placement comes back untouched rather than throwing: this runs
- *  on a click handler, and a crash there would strand the page. */
-export function cycleSquare(placement, index, direction = 1) {
+/** Put `piece` (a FEN char, or "" to erase) on `index`.
+ *  A malformed placement or unknown piece comes back untouched rather than
+ *  throwing: this runs on a click handler, and a crash there strands the page. */
+export function stampSquare(placement, index, piece) {
+  if (!PIECE_CHARS.includes(piece)) return placement;
+  if (!Number.isInteger(index) || index < 0 || index > 63) return placement;
   const cells = expand(placement);
-  if (!cells || index < 0 || index > 63) return placement;
-  const current = CYCLE.indexOf(cells[index]);
-  if (current === -1) return placement;
-  const next = (current + direction + CYCLE.length) % CYCLE.length;
-  cells[index] = CYCLE[next];
+  if (!cells) return placement;
+  cells[index] = piece;
   return collapse(cells);
 }
