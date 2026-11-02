@@ -2,7 +2,7 @@ import { createRecognizer, resolveOrientation } from "@scoriiu/fenshot";
 import { renderBoardSvg } from "./board.mjs";
 import { pickImageFile } from "./paste.mjs";
 import { composeFen, flipPlacement, isPlausible } from "./fen.mjs";
-import { castlingOptions, resolveRights } from "./castling.mjs";
+import { castlingOptions, describeChoice, resolveRights } from "./castling.mjs";
 import { stampSquare } from "./edit.mjs";
 import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
 import { findHighlights, inferTurn, samplePoints } from "./highlight.mjs";
@@ -251,28 +251,33 @@ async function copyFen() {
   render();
 }
 
-/** 每一侧一组「有 | 无」。有 = 位置上支持的都算（用户明确声称），
- *  无 = 一律没有；auto 时按推断结果选中，并标注「推断」。 */
+/** 每一侧一组「有 | 无」。推断结论写在被选中的那个按钮*里面*
+ *  （如「有 KQ 推断」），而不是挂在组后面。 */
 function castlingControls() {
   const placement = effectivePlacement();
-  const rights = resolvedRights();
   return ["w", "b"]
     .map((side) => {
       const options = castlingOptions(placement, side, state.highlights ?? []);
       const choice = state.castling?.[side] ?? "auto";
-      const on = rights[side] !== "-";
+      const view = describeChoice(options, choice);
       const label = side === "w" ? "白方" : "黑方";
-      const marker =
-        choice === "auto" ? `<span class="inferred-mark" title="${escapeHtml(options.reason)}">（推断）</span>` : "";
-      const onDisabled = options.canHave ? "" : `disabled title="${escapeHtml(options.reason)}"`;
+      const badge = (where) =>
+        view.badge === where
+          ? `<span class="inferred-badge" title="${escapeHtml(view.reason)}">推断</span>`
+          : "";
+      const onDisabled = view.canHave
+        ? ""
+        : `disabled title="${escapeHtml(view.reason)}"`;
       return `<div class="control">
         <span class="control-label">${label}易位</span>
         <div class="toggle">
-          <button type="button" class="${choice !== "auto" && on ? "on" : choice === "auto" && on ? "auto-on" : ""}"
-            data-action="castle-${side}-on" ${onDisabled}>有</button>
-          <button type="button" class="${!on && choice !== "auto" ? "on" : !on ? "auto-on" : ""}"
-            data-action="castle-${side}-off">无</button>
-        </div>${marker}
+          <button type="button" class="${view.onSelected ? (view.badge === "on" ? "auto-on" : "on") : ""}"
+            data-action="castle-${side}-on" ${onDisabled}>有${
+              view.onSelected && view.letters ? ` <span class="letters">${view.letters}</span>` : ""
+            }${badge("on")}</button>
+          <button type="button" class="${view.offSelected ? (view.badge === "off" ? "auto-on" : "on") : ""}"
+            data-action="castle-${side}-off">无${badge("off")}</button>
+        </div>
       </div>`;
     })
     .join("");

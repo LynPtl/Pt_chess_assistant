@@ -93,3 +93,36 @@ test("resolveRights：摆位坏了也不抛错", async () => {
   const { resolveRights } = await import("../src/castling.mjs");
   assert.deepEqual(resolveRights("nonsense", [], { w: "auto", b: "auto" }), { w: "-", b: "-" });
 });
+
+test("describeChoice：推断落在哪个按钮上，就标在那个按钮里", async () => {
+  const { castlingOptions, describeChoice } = await import("../src/castling.mjs");
+  const options = castlingOptions(ITALIAN, "w", []); // 推断 KQ
+
+  const auto = describeChoice(options, "auto");
+  assert.equal(auto.onSelected, true);
+  assert.equal(auto.badge, "on", "角标要在「有」里面");
+  assert.equal(auto.letters, "KQ", "「有」上要写出推出来的字母");
+  assert.equal(auto.reason, options.reason);
+
+  const userOff = describeChoice(options, "off");
+  assert.equal(userOff.onSelected, false);
+  assert.equal(userOff.badge, null, "用户明确选过之后不再标推断");
+});
+
+test("describeChoice：推断是没有时，角标落在「无」里", async () => {
+  const { castlingOptions, describeChoice } = await import("../src/castling.mjs");
+  const options = castlingOptions(KINGS_OFF, "w", []); // 王不在 e1
+  const auto = describeChoice(options, "auto");
+  assert.equal(auto.onSelected, false);
+  assert.equal(auto.badge, "off");
+  assert.equal(auto.letters, "", "没有可给的权利时「有」不显示字母");
+  assert.equal(auto.canHave, false);
+});
+
+test("describeChoice：推断被高亮削掉一半时，字母只显示剩下那个", async () => {
+  const { castlingOptions, describeChoice } = await import("../src/castling.mjs");
+  const options = castlingOptions(ITALIAN, "w", [H1]); // 动过 h1 → 只剩 Q
+  const auto = describeChoice(options, "auto");
+  assert.equal(auto.onSelected, true);
+  assert.equal(auto.letters, "Q");
+});
