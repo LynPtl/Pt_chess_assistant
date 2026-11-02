@@ -179,13 +179,17 @@ node scripts/browser-check.mjs "http://127.0.0.1:8787/?fixtures=1"
 - 易位权按"王和车还在原位"推断，会**偏乐观**（王回过家就会凭空多出权利），可一键改成"无"
 - 吃过路兵与回合数固定写成 `- 0 1`
 
-**未验证 / 待你在本机确认**（这台机器上没装 En Croissant 与 Maia 3）：
+**实测结论（En Croissant 0.15.1，本机已装）**：
 
-- [ ] 点「送入」后 En Croissant 是否**自动挂上**已配置的引擎
-      —— 若不自动，需在 En Croissant 里手动选一次引擎
-- [ ] Maia 3 的启动时间是否撞上 En Croissant 的引擎初始化超时
-      —— 已 `maia3-cache` 预下 checkpoint 可缓解
-- [ ] En Croissant 已经在运行时再送一次，会不会冒出第二个窗口
+- **送入后不会自动开始分析。** 标签页会开出来、局面正确，但分析面板是空的，
+  En Croissant 的 Engines 页显示 `No engine selected`。到 Analysis → Engines
+  里选中你装好的引擎即可，之后每个新标签页都要选一次（或按你配置的默认引擎走）。
+- **每次送入都会新开一个窗口。** 虽然它带 `tauri-plugin-single-instance`，
+  实测第二个实例没有退出（`en-croissant.exe` 进程数 1 → 2）。介意的话送之前先关掉旧窗口。
+  想改善的话，En Croissant 支持 `encroissant://import?url=<pgn 地址>` 深链，
+  可以把「spawn exe」换成「打开深链」——这是本工具当前版本没做的。
+- **Maia 3 的启动超时**未测（本机没装 torch）。同一位置已验证 Stockfish 19 能被识别
+  （Engines 页显示 VERSION 19），所以引擎槽本身没问题，剩下的只是 Maia 3 的加载耗时。
 
 已验证的（在这台机器上跑过）：
 
@@ -196,3 +200,6 @@ node scripts/browser-check.mjs "http://127.0.0.1:8787/?fixtures=1"
 - [x] 点「送入」→ 写 PGN → 启动真实进程（路径含空格）→ 页面显示"已送入"
 - [x] 日志逐条落盘，字段固定
 - [x] `enCroissantPath` 配错时只给"复制 FEN"，不报假成功
+- [x] 真机端到端：装 En Croissant 0.15.1 → 送入 → 新窗口标签页 `Pasted position`
+      里就是识别出的那盘棋（已截图确认盘面）
+- [x] 引擎槽可用：Stockfish 19 被 En Croissant 正确识别（VERSION 19）

@@ -1,7 +1,8 @@
-node_modules/
-dist/
-src/ort/
-src/model/
-config.json
-logs/
 .superpowers/
+.tmp/
+config.json
+dist/
+logs/
+node_modules/
+src/model/
+src/ort/
