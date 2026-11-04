@@ -111,7 +111,7 @@ export function installDevHooks(ctx) {
             verdict: ctx.verdictFor(fen),
             handoffAvailable: ctx.handoffConfigured,
             dom: {
-              image: Boolean(app.querySelector(".result img")),
+              image: Boolean(app.querySelector('img[alt="你粘贴的截图"]')),
               board: Boolean(app.querySelector("svg.board")),
               confidenceShown: /置信度 \d+%/.test(app.textContent ?? ""),
               sendButton: Boolean(app.querySelector('[data-action="send"]')),

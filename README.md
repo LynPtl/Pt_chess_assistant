@@ -114,6 +114,17 @@ C:\Program Files\En Croissant\en-croissant.exe
 - **红点 `● 未连上`** → 后面会写明原因（没填路径 / 路径不存在 / config.json 写坏了），
   改好 `config.json` 后点「重新检测」即可，**不用重启**
 
+### 也可以直接粘贴一段 FEN
+
+不想截图的时候（比如 FEN 是从聊天记录里复制来的），**直接 `Ctrl`+`V` 一段 FEN** 就行：
+
+```
+r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b Qk - 0 1
+```
+
+走子方和易位权**直接从 FEN 读**，不用推断也不用核对；4 段的简写 FEN 也认（自动补 `0 1`）。
+摆出来照样可以点格子改、拖拽换位、撤销。
+
 ### 1. 截图
 
 `Win` + `Shift` + `S` 框选棋盘 → 截图进了剪贴板。
@@ -282,7 +293,10 @@ node scripts/browser-check.mjs "http://127.0.0.1:8787/?fixtures=1"
 10 张图逐张跑**生产那条识别路径**，与 `test/fixtures/expected.json` 比对。
 （其中 `lichess-user-1816.png` 是一张真机截图，也带着"上一步高亮"，用来守走子方推断。）
 
-交互层还有一条回归：`node scripts/verify-interactions.mjs`。它用**真实鼠标事件**
+交互层还有两条回归（`npm run verify` / `npm run verify:fen`）：
+`scripts/verify-interactions.mjs` 和 `scripts/verify-fen-paste.mjs`。
+
+前者它用**真实鼠标事件**
 点调色板、点格子、右键擦除、拖动换位，所以能抓到"重构把某个处理函数删了、页面静默失效"
 这类单测覆盖不到的问题（真的抓到过一次）。
 

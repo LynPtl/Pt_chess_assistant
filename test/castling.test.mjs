@@ -124,3 +124,20 @@ test("describeChoice：推断被高亮削掉一半时仍然算「有」", async 
   assert.equal(auto.onSelected, true, "还剩一项权利，就该选「有」");
   assert.match(auto.reason, /h1/);
 });
+
+test("resolveRights：直接给字母时按字母来（FEN 导入用）", async () => {
+  const { resolveRights } = await import("../src/castling.mjs");
+  assert.deepEqual(resolveRights(ITALIAN, [], { w: "Q", b: "kq" }), { w: "Q", b: "kq" });
+  assert.deepEqual(resolveRights(ITALIAN, [], { w: "-", b: "k" }), { w: "-", b: "k" });
+});
+
+test("resolveRights：字母和摆位矛盾时以摆位为准（不让引擎给出非法易位）", async () => {
+  const { resolveRights } = await import("../src/castling.mjs");
+  // 王都出了原位，却声称有权利 → 一律不给
+  assert.deepEqual(resolveRights(KINGS_OFF, [], { w: "KQ", b: "kq" }), { w: "-", b: "-" });
+  // h1 的车没了，只声称短易位 → 也不给
+  const noH1 = "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK3";
+  assert.deepEqual(resolveRights(noH1, [], { w: "K", b: "-" }), { w: "-", b: "-" });
+  // 只剩长易位的车 → 声称 Q 可以，声称 K 不行
+  assert.deepEqual(resolveRights(noH1, [], { w: "Q", b: "-" }), { w: "Q", b: "-" });
+});

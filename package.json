@@ -14,7 +14,8 @@
     "postinstall": "node scripts/sync-assets.mjs",
     "dev": "vite",
     "prebuild": "node scripts/sync-assets.mjs",
-    "verify": "node scripts/verify-interactions.mjs"
+    "verify": "node scripts/verify-interactions.mjs",
+    "verify:fen": "node scripts/verify-fen-paste.mjs"
   },
   "keywords": [],
   "author": "",

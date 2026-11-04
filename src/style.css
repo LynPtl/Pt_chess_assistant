@@ -456,3 +456,9 @@ table.fixtures tr.pass td:nth-child(3) {
 .close-first input {
   accent-color: var(--accent);
 }
+
+/* 从 FEN 导入时没有截图，棋盘单独居中，不要留空列 */
+.result.no-shot {
+  grid-template-columns: minmax(280px, 560px);
+  justify-content: center;
+}

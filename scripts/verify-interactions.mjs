@@ -70,15 +70,24 @@ sock.addEventListener("message", (event) => {
 });
 await new Promise((r) => sock.addEventListener("open", r));
 const call = (method, params = {}) =>
-  new Promise((res) => {
+  new Promise((res, reject) => {
     const i = ++id;
-    pending.set(i, res);
+    const timer = setTimeout(() => {
+      pending.delete(i);
+      reject(new Error(`${method} 超时（页面可能崩了）`));
+    }, 15000);
+    pending.set(i, (result) => {
+      clearTimeout(timer);
+      res(result);
+    });
     sock.send(JSON.stringify({ id: i, method, params }));
   });
 const ev = async (expr) =>
   (await call("Runtime.evaluate", { expression: expr, returnByValue: true, awaitPromise: true })).result?.value;
 
 await call("Runtime.enable");
+// 无头页面上 window.confirm 会真的把渲染进程卡住，凡是需要确认的路径一律自动同意
+await call("Runtime.evaluate", { expression: "window.confirm = () => true" });
 
 for (let i = 0; i < 200; i++) {
   const done = await ev("String(!!window.__done)");
@@ -188,6 +197,9 @@ if (configured) {
 }
 
 chrome.kill("SIGKILL");
+
+// FEN 粘贴单独用 scripts/verify-fen-paste.mjs 验（在识别结果页上做会被
+// 之前那一串交互拖累，实测会让渲染进程卡住，与功能本身无关）。
 
 check("页面没有未捕获异常", pageErrors.length === 0, pageErrors[0]?.split("\n")[0]);
 

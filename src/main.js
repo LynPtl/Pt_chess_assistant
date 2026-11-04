@@ -4,6 +4,7 @@ import { pickImageFile } from "./paste.mjs";
 import { composeFen, flipPlacement, isPlausible } from "./fen.mjs";
 import { resolveRights } from "./castling.mjs";
 import { inferEnPassant, moveSquare, pushHistory, stampSquare } from "./edit.mjs";
+import { parseFenInput } from "./import-fen.mjs";
 import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
 import { createService } from "./service.mjs";
 import { installDevHooks } from "./devhooks.mjs";
@@ -190,15 +191,21 @@ function renderResult() {
 
   app.innerHTML = `
     ${statusStrip(health)}
-    <section class="result">
-      <figure>
-        <img src="${state.imageUrl}" alt="你粘贴的截图" />
-        <figcaption>你的截图</figcaption>
-      </figure>
+    <section class="result ${state.imageUrl ? "" : "no-shot"}">
+      ${
+        state.imageUrl
+          ? `<figure>
+               <img src="${state.imageUrl}" alt="你粘贴的截图" />
+               <figcaption>你的截图</figcaption>
+             </figure>`
+          : ""
+      }
       <figure class="board-figure">
         ${renderBoardSvg(boardPlacement, false, PIECE_URLS)}
         <figcaption>
-          识别结果 · 平均置信度 ${confidence}%${state.edited ? " · 已手动修正" : ""}
+          ${state.source === "fen" ? "从 FEN 导入（未经识别，无需核对棋子）" : `识别结果 · 平均置信度 ${confidence}%`}${
+            state.edited ? " · 已手动修正" : ""
+          }
           <br /><span class="edit-hint">点格子盖章 · 拖动棋子换位 · 右键擦掉</span>
         </figcaption>
         ${paletteHtml({
@@ -411,10 +418,49 @@ window.addEventListener("keydown", (event) => {
 
 window.addEventListener("paste", (event) => {
   const file = pickImageFile(event.clipboardData?.items);
-  if (!file) return;
+  if (file) {
+    event.preventDefault();
+    void scanImage(file);
+    return;
+  }
+  // 没有图片就看看是不是一段 FEN —— 这条路径不用识别，走子方和易位权都是确定的。
+  const text = event.clipboardData?.getData("text") ?? "";
+  const imported = parseFenInput(text);
+  if (!imported) return;
   event.preventDefault();
-  void scanImage(file);
+  loadFen(imported);
 });
+
+/** 直接把一段 FEN 摆上棋盘：不经过识别，所以没有置信度，也不该显示"识别结果"。 */
+function loadFen({ placement, turn, castling }) {
+  releaseResultUrl(state);
+  notice = { tone: "ok", text: "已从剪贴板导入 FEN" };
+  state = {
+    kind: "result",
+    source: "fen",
+    scan: {
+      placement,
+      reliable: true,
+      plausible: isPlausible(placement),
+      meanConfidence: 1,
+      minConfidence: 1,
+      corners: null,
+    },
+    placement,
+    orientation: "white",
+    turnInferred: false,
+    inferredMover: null,
+    highlights: [],
+    imageUrl: null,
+    turn,
+    castling,
+    flipped: false,
+    edited: false,
+    activePiece: null,
+    history: [],
+  };
+  render();
+}
 
 app.addEventListener("dragover", (event) => {
   const zone = app.querySelector(".dropzone");

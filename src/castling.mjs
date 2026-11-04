@@ -100,9 +100,17 @@ export function resolveRights(placement, highlighted, choices = {}) {
   for (const side of ["w", "b"]) {
     const options = castlingOptions(placement, side, highlighted);
     const choice = choices?.[side] ?? "auto";
-    if (choice === "off") out[side] = "-";
-    else if (choice === "on") out[side] = options.canHave ? options.letters : "-";
-    else out[side] = options.defaultLetters;
+    if (choice === "off") {
+      out[side] = "-";
+    } else if (choice === "on") {
+      out[side] = options.canHave ? options.letters : "-";
+    } else if (choice === "auto") {
+      out[side] = options.defaultLetters;
+    } else {
+      // 明确给了字母（FEN 导入）：只保留"摆位支持得起"的那几个，
+      // 否则引擎会给出根本不存在的易位着法。
+      out[side] = [...String(choice)].filter((ch) => options.letters.includes(ch)).join("") || "-";
+    }
   }
   return out;
 }
