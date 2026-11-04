@@ -162,6 +162,14 @@ if (sample === "ok") {
 
 // 浏览器内引擎暂未接入（见 README 已知限制）：稳定性问题解决后再把这两条加回来。
 
+// 页脚要把访客引到 GitHub（静态版能做的有限，完整分析在本地）
+const footer = await ev(`(() => {
+  const a = document.querySelector(".site-footer a");
+  return a ? { href: a.getAttribute("href"), target: a.getAttribute("target"), text: a.textContent.trim() } : null;
+})()`);
+check("页脚有 GitHub 链接", Boolean(footer?.href?.includes("github.com/LynPtl/Pt_chess_assistant")), JSON.stringify(footer));
+check("GitHub 链接新开标签页", footer?.target === "_blank", footer?.target ?? "(无)");
+
 const apiHits = requests.filter((p) => /healthz|handoff|^\/open$|^\/shutdown$|fixtures\/expected/.test(p));
 check("整个流程没有请求任何本地接口", apiHits.length === 0, apiHits.join(", "));
 check("页面没有未捕获异常", pageErrors.length === 0, pageErrors[0]?.split("\n")[0]);

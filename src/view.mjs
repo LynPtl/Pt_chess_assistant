@@ -8,6 +8,8 @@
 
 import { castlingOptions, describeChoice } from "./castling.mjs";
 
+export const REPO_URL = "https://github.com/LynPtl/Pt_chess_assistant";
+
 export function escapeHtml(value) {
   return String(value).replace(
     /[&<>"]/g,
@@ -177,4 +179,22 @@ export function recentList({ items = [] } = {}) {
       <h2>最近识别过的局面</h2>
       <ul>${rows}</ul>
     </section>`;
+}
+
+/** 页脚：把线上访客引到 GitHub。
+ *
+ *  静态版能做的只有"摆好 + 复制 FEN / 去 lichess"，真正的分析要本地跑
+ *  （Maia 3 / Stockfish 都是本地进程）—— 所以这里得说清楚去那边能得到什么，
+ *  而不是干巴巴贴一个仓库地址。
+ */
+export function footerHtml({ staticMode = false } = {}) {
+  const pitch = staticMode
+    ? `<span class="footer-pitch">想要 Maia 3 / Stockfish 的完整本地分析？</span>`
+    : `<span class="footer-pitch">源码、问题反馈都在 GitHub。</span>`;
+  return `<footer class="site-footer">
+      ${pitch}
+      <a href="${REPO_URL}" target="_blank" rel="noreferrer">${
+        staticMode ? "在 GitHub 获取本地版" : "Pt chess assistant on GitHub"
+      }</a>
+    </footer>`;
 }

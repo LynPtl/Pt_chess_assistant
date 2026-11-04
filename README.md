@@ -6,6 +6,9 @@
 
 **English**: [README.en.md](README.en.md)
 
+线上版页脚有指向本仓库的链接（"想要 Maia 3 / Stockfish 的完整本地分析？在 GitHub 获取本地版"），
+因为静态版做不了引擎分析，完整体验要本地跑。
+
 **在线试（静态版，无需安装）**：<https://pt-chess-assistant.ptlantern.workers.dev>
 —— 只能"贴图/贴 FEN → 摆好 → 复制 FEN 或去 lichess 分析"，没有本地引擎（那是设计如此）。
 

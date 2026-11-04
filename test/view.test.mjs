@@ -190,3 +190,20 @@ test("recentList：没有历史时整块不渲染", async () => {
   const { recentList } = await import("../src/view.mjs");
   assert.equal(recentList({ items: [] }), "");
 });
+
+test("footerHtml：页脚给出 GitHub 链接，引导用户去装本地版", async () => {
+  const { footerHtml, REPO_URL } = await import("../src/view.mjs");
+  const html = footerHtml({ staticMode: true });
+  assert.match(html, /github\.com\/LynPtl\/Pt_chess_assistant/);
+  assert.match(html, /target="_blank"/);
+  assert.match(html, /本地/, "要说清本地版有什么好处");
+  assert.match(html, /Maia 3/);
+  assert.equal(REPO_URL, "https://github.com/LynPtl/Pt_chess_assistant");
+});
+
+test("footerHtml：本地版也放链接（源码 / 反馈）", async () => {
+  const { footerHtml } = await import("../src/view.mjs");
+  const html = footerHtml({ staticMode: false });
+  assert.match(html, /github\.com\/LynPtl\/Pt_chess_assistant/);
+  assert.doesNotMatch(html, /装本地版/, "本地版已经在本机了，别再劝他装");
+});

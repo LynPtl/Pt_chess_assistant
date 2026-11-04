@@ -11,7 +11,7 @@ import { createService } from "./service.mjs";
 import { installDevHooks } from "./devhooks.mjs";
 import { staticMode } from "./mode.mjs";
 import { rotateHighlights } from "./highlight.mjs";
-import { actionsRow, castlingControls, dropzoneHtml, escapeHtml, noticeBlock, paletteHtml, recentList, statusStrip, toggleButton } from "./view.mjs";
+import { actionsRow, castlingControls, dropzoneHtml, escapeHtml, footerHtml, noticeBlock, paletteHtml, recentList, statusStrip, toggleButton } from "./view.mjs";
 import { installBoardEditing } from "./board-editing.mjs";
 import { highlightSquares } from "./sampling.mjs";
 import { loadRecent, pushRecent } from "./history.mjs";
@@ -455,9 +455,11 @@ function bind(actions) {
 }
 
 function render() {
-  if (state.kind === "idle" || state.kind === "scanning") return renderIdleOrScanning();
-  if (state.kind === "noboard") return renderNoBoard();
-  return renderResult();
+  if (state.kind === "idle" || state.kind === "scanning") renderIdleOrScanning();
+  else if (state.kind === "noboard") renderNoBoard();
+  else renderResult();
+  // 页脚每次都重新追加：上面三个渲染函数都重写了 #app 的内容
+  app.insertAdjacentHTML("beforeend", footerHtml({ staticMode }));
 }
 
 // Ctrl+Z / Cmd+Z 撤销一步编辑。只在结果页生效，且不要在输入框里抢键。
