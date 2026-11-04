@@ -2,11 +2,12 @@ import { createRecognizer, resolveOrientation } from "@scoriiu/fenshot";
 import { renderBoardSvg } from "./board.mjs";
 import { pickImageFile } from "./paste.mjs";
 import { composeFen, flipPlacement, isPlausible } from "./fen.mjs";
-import { castlingOptions, describeChoice, resolveRights } from "./castling.mjs";
+import { resolveRights } from "./castling.mjs";
 import { moveSquare, stampSquare } from "./edit.mjs";
 import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
 import { createService } from "./service.mjs";
 import { installDevHooks } from "./devhooks.mjs";
+import { castlingControls, escapeHtml, noticeBlock, paletteHtml, statusStrip, toggleButton } from "./view.mjs";
 import { installBoardEditing } from "./board-editing.mjs";
 import { inferFromHighlights } from "./sampling.mjs";
 import { evaluatePosition } from "./guards.mjs";
@@ -141,114 +142,11 @@ function verdictFor(fen) {
   });
 }
 
-function escapeHtml(value) {
-  return String(value).replace(
-    /[&<>"]/g,
-    (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch],
-  );
-}
-
-async function sendToEnCroissant() {
-  const fen = currentFen();
-  if (!fen || !health.configured) return;
-  const verdict = verdictFor(fen);
-  if (verdict.blocked) return;
-  if (verdict.needsConfirm && !window.confirm("识别结果有警告，仍然送入 En Croissant？")) return;
-
-  try {
-    const body = await service.handoff({
-      fen,
-      turn: state.turn,
-      castlingMode: state.castling,
-      flipped: state.flipped,
-      meanConfidence: state.scan.meanConfidence,
-      minConfidence: state.scan.minConfidence,
-      reliable: state.scan.reliable,
-    });
-    notice = body.ok
-      ? { tone: "ok", text: "已送入 En Croissant" }
-      : { tone: "error", text: body.error ?? "送入失败" };
-  } catch (err) {
-    notice = { tone: "error", text: `送入失败：${err.message}` };
-  }
-  render();
-}
-
-async function copyFen() {
-  const fen = currentFen();
-  if (!fen) return;
-  try {
-    await navigator.clipboard.writeText(fen);
-    notice = { tone: "ok", text: "FEN 已复制" };
-  } catch (err) {
-    notice = { tone: "error", text: `复制失败：${err.message}` };
-  }
-  render();
-}
-
-/** 每一侧一组「有 | 无」。推断结论写在被选中的那个按钮*里面*
- *  （如「有 KQ 推断」），而不是挂在组后面。 */
-function castlingControls() {
-  const placement = effectivePlacement();
-  return ["w", "b"]
-    .map((side) => {
-      const options = castlingOptions(placement, side, state.highlights ?? []);
-      const choice = state.castling?.[side] ?? "auto";
-      const view = describeChoice(options, choice);
-      const label = side === "w" ? "白方" : "黑方";
-      const badge = (where) =>
-        view.badge === where
-          ? `<span class="inferred-badge" title="${escapeHtml(view.reason)}">推断</span>`
-          : "";
-      const onDisabled = view.canHave
-        ? ""
-        : `disabled title="${escapeHtml(view.reason)}"`;
-      return `<div class="control">
-        <span class="control-label">${label}易位</span>
-        <div class="toggle">
-          <button type="button" class="${view.onSelected ? (view.badge === "on" ? "auto-on" : "on") : ""}"
-            data-action="castle-${side}-on" ${onDisabled}>有${badge("on")}</button>
-          <button type="button" class="${view.offSelected ? (view.badge === "off" ? "auto-on" : "on") : ""}"
-            data-action="castle-${side}-off">无${badge("off")}</button>
-        </div>
-      </div>`;
-    })
-    .join("");
-}
-
-function toggleButton(label, active, action) {
-  return `<button type="button" class="${active ? "on" : ""}" data-action="${action}">${label}</button>`;
-}
-
-/** Status strip: whether the handoff is wired, why not when it isn't, and the
- *  two things a user can do about it without leaving the page. */
-function statusStrip() {
-  const stop = `<button type="button" class="danger" data-action="shutdown">停止服务</button>`;
-  if (health.configured) {
-    return `<div class="service-status ok">
-      <span>● 已连上 En Croissant</span>
-      <button type="button" data-action="open-app">打开 En Croissant</button>
-      ${stop}
-    </div>`;
-  }
-  return `<div class="service-status bad">
-    <span>● 未连上 En Croissant —— ${escapeHtml(health.reason ?? "")}</span>
-    <button type="button" data-action="refresh-health">重新检测</button>
-    ${stop}
-  </div>`;
-}
-
-function noticeBlock() {
-  return notice
-    ? `<p class="notice notice-${notice.tone}" role="status">${escapeHtml(notice.text)}</p>`
-    : "";
-}
-
 function renderIdleOrScanning() {
   const busy = state.kind === "scanning";
   app.innerHTML = `
-    ${statusStrip()}
-    ${noticeBlock()}
+    ${statusStrip(health)}
+    ${noticeBlock(notice)}
     <section class="dropzone ${busy ? "busy" : ""}">
       <h1>粘贴棋盘截图</h1>
       <p class="hint"><kbd>Ctrl</kbd>+<kbd>V</kbd> 任意位置粘贴 · 拖入图片 · 或点这里选择文件</p>
@@ -285,10 +183,10 @@ function renderResult() {
   const banners = verdict.warnings
     .map((w) => `<p class="banner${verdict.blocked ? " banner-block" : ""}" role="alert">${escapeHtml(w)}</p>`)
     .join("");
-  const noticeHtml = noticeBlock();
+  const noticeHtml = noticeBlock(notice);
 
   app.innerHTML = `
-    ${statusStrip()}
+    ${statusStrip(health)}
     <section class="result">
       <figure>
         <img src="${state.imageUrl}" alt="你粘贴的截图" />
@@ -300,7 +198,11 @@ function renderResult() {
           识别结果 · 平均置信度 ${confidence}%${state.edited ? " · 已手动修正" : ""}
           <br /><span class="edit-hint">点格子盖章 · 拖动棋子换位 · 右键擦掉</span>
         </figcaption>
-        ${paletteHtml()}
+        ${paletteHtml({
+              activePiece: state.activePiece,
+              pieceUrls: PIECE_URLS,
+              palette: PALETTE,
+            })}
       </figure>
     </section>
 
@@ -319,7 +221,11 @@ function renderResult() {
             ${toggleButton("黑方", state.turn === "b", "turn-b")}
           </div>
         </div>
-        ${castlingControls()}
+        ${castlingControls({
+              placement: boardPlacement,
+              castling: state.castling,
+              highlights: state.highlights,
+            })}
         <div class="control">
           <span class="control-label">棋盘</span>
           <div class="toggle">${toggleButton("翻转", state.flipped, "flip")}</div>
@@ -372,28 +278,6 @@ function renderResult() {
   });
 }
 
-function paletteHtml() {
-  const button = (piece) =>
-    `<button type="button" class="palette-btn ${state.activePiece === piece ? "on" : ""}" ` +
-    `data-piece="${piece}" title="${piece === "" ? "擦除" : piece}">` +
-    (piece === "" ? "⌫" : `<img src="${PIECE_URLS[piece]}" alt="${piece}" />`) +
-    `</button>`;
-  const row = (pieces) => `<div class="palette-row">${pieces.map(button).join("")}</div>`;
-  // 白子一行、黑子一行；擦除单独放一个小的工具按钮，免得和棋子一样大
-  const white = PALETTE.filter((p) => p === p.toUpperCase());
-  const black = PALETTE.filter((p) => p !== p.toUpperCase());
-  const eraser =
-    `<div class="palette-row palette-erase">` +
-    `<button type="button" class="palette-btn small ${state.activePiece === "" ? "on" : ""}" ` +
-    `data-piece="" title="擦除">⌫</button>` +
-    `<span class="palette-label">擦除（右键点格子更快）</span>` +
-    `</div>`;
-  return `<div class="palette">${row(white)}${row(black)}${eraser}</div>`;
-}
-
-/** Same primitive for both buttons: stamp the selected piece (or erase). The
- *  board is re-rendered from state each time, so what you see and the FEN can
- *  never disagree. */
 function editSquare(screenIndex, piece) {
   // The board is drawn from the effective (possibly flipped) placement and
   // numbered in that same orientation, so map back before touching state.
@@ -434,6 +318,47 @@ function movePieceTo(screenIndex, to) {
   if (next === state.placement) return;
   notice = null;
   state = { ...state, placement: next, edited: true };
+  render();
+}
+
+/** 送入 En Croissant：先过三道闸（合法性 / 需要二次确认 / 是否已连上），
+ *  再交给 service。这一层只管"要不要送"，不管怎么送。 */
+async function sendToEnCroissant() {
+  const fen = currentFen();
+  if (!fen || !health.configured) return;
+  const verdict = verdictFor(fen);
+  if (verdict.blocked) return;
+  if (verdict.needsConfirm && !window.confirm("识别结果有警告，仍然送入 En Croissant？")) return;
+
+  try {
+    const body = await service.handoff({
+      fen,
+      turn: state.turn,
+      castlingMode: state.castling,
+      flipped: state.flipped,
+      meanConfidence: state.scan.meanConfidence,
+      minConfidence: state.scan.minConfidence,
+      reliable: state.scan.reliable,
+    });
+    notice = body.ok
+      ? { tone: "ok", text: "已送入 En Croissant" }
+      : { tone: "error", text: body.error ?? "送入失败" };
+  } catch (err) {
+    notice = { tone: "error", text: `送入失败：${err.message}` };
+  }
+  render();
+}
+
+/** 复制 FEN —— enCroissantPath 没配好时的唯一出路。 */
+async function copyFen() {
+  const fen = currentFen();
+  if (!fen) return;
+  try {
+    await navigator.clipboard.writeText(fen);
+    notice = { tone: "ok", text: "FEN 已复制" };
+  } catch (err) {
+    notice = { tone: "error", text: `复制失败：${err.message}` };
+  }
   render();
 }
 

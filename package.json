@@ -13,7 +13,8 @@
     "sync": "node scripts/sync-assets.mjs",
     "postinstall": "node scripts/sync-assets.mjs",
     "dev": "vite",
-    "prebuild": "node scripts/sync-assets.mjs"
+    "prebuild": "node scripts/sync-assets.mjs",
+    "verify": "node scripts/verify-interactions.mjs"
   },
   "keywords": [],
   "author": "",

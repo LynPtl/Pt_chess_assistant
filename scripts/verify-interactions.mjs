@@ -56,8 +56,13 @@ if (!target) {
 const sock = new WebSocket(target.webSocketDebuggerUrl);
 let id = 0;
 const pending = new Map();
+const pageErrors = [];
 sock.addEventListener("message", (event) => {
   const msg = JSON.parse(event.data);
+  // 未捕获异常几乎总是"某个处理函数被删了"——顺手抓下来，别只靠某次点击暴露
+  if (msg.method === "Runtime.exceptionThrown") {
+    pageErrors.push(msg.params.exceptionDetails?.exception?.description ?? msg.params.exceptionDetails?.text);
+  }
   if (msg.id && pending.has(msg.id)) {
     pending.get(msg.id)(msg.result);
     pending.delete(msg.id);
@@ -72,6 +77,8 @@ const call = (method, params = {}) =>
   });
 const ev = async (expr) =>
   (await call("Runtime.evaluate", { expression: expr, returnByValue: true, awaitPromise: true })).result?.value;
+
+await call("Runtime.enable");
 
 for (let i = 0; i < 200; i++) {
   const done = await ev("String(!!window.__done)");
@@ -141,7 +148,30 @@ check("拖动棋子能换位", dragged !== begun && dragged.includes("2n1P3"), d
 await dragSquare(20, 36);
 check("再拖回来能复原", (await fen()) === begun);
 
+// 提示条：送入 / 复制 FEN 之后必须能看见反馈。这条曾经因为
+// noticeBlock() 少传参数而静默失效——按钮点了，页面毫无反应。
+const configured = (await ev('document.querySelector(".service-status")?.classList.contains("ok")')) === true;
+await ev('document.querySelector("[data-action=copy]")?.click()');
+await sleep(600);
+const copyNotice = await ev('document.querySelector(".notice")?.textContent ?? null');
+check("点「复制 FEN」会给出提示", Boolean(copyNotice), copyNotice ?? "没有提示");
+
+if (configured) {
+  await ev('document.querySelector("[data-action=send]").click()');
+  let sendNotice = null;
+  for (let i = 0; i < 40 && !sendNotice; i++) {
+    await sleep(150);
+    sendNotice = await ev('document.querySelector(".notice")?.textContent ?? null');
+  }
+  check("点「送入」会给出提示（未捕获异常或提示条丢失）", Boolean(sendNotice), sendNotice ?? "没有提示");
+} else {
+  const hint = await ev('document.querySelector(".hint")?.textContent ?? ""');
+  check("未配置时只提示复制 FEN", /还不能送入/.test(hint), hint);
+}
+
 chrome.kill("SIGKILL");
+
+check("页面没有未捕获异常", pageErrors.length === 0, pageErrors[0]?.split("\n")[0]);
 
 for (const r of results) console.log(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.ok || !r.detail ? "" : `  → ${r.detail}`}`);
 const failed = results.filter((r) => !r.ok);
