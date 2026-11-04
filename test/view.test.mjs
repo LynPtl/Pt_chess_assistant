@@ -207,3 +207,10 @@ test("footerHtml：本地版也放链接（源码 / 反馈）", async () => {
   assert.match(html, /github\.com\/LynPtl\/Pt_chess_assistant/);
   assert.doesNotMatch(html, /装本地版/, "本地版已经在本机了，别再劝他装");
 });
+
+test("actionsRow：两种形态都给「复制链接」", async () => {
+  const { actionsRow } = await import("../src/view.mjs");
+  const fen = "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1";
+  assert.match(actionsRow({ staticMode: true, fen }), /data-action="link"/);
+  assert.match(actionsRow({ staticMode: false, configured: true, blocked: false, fen }), /data-action="link"/);
+});

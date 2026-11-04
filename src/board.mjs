@@ -27,8 +27,9 @@ function expandPlacement(placement) {
   return cells;
 }
 
-export function renderBoardSvg(placement, flipped, pieces) {
+export function renderBoardSvg(placement, flipped, pieces, { suspicious = [] } = {}) {
   const cells = expandPlacement(placement);
+  const suspect = new Set(suspicious);
   const parts = [];
   parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8" class="board" role="img">');
 
@@ -58,6 +59,21 @@ export function renderBoardSvg(placement, flipped, pieces) {
       parts.push(
         `<image data-at="${index}" href="${href}" x="${col + 0.05}" y="${row + 0.05}" ` +
           `width="0.9" height="0.9" pointer-events="none"/>`,
+      );
+    }
+  }
+
+  // 识别没把握的格子：画在棋子之上，虚线描边，不挡内容
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const sourceRow = flipped ? 7 - row : row;
+      const sourceCol = flipped ? 7 - col : col;
+      const index = sourceRow * 8 + sourceCol;
+      if (!suspect.has(index)) continue;
+      parts.push(
+        `<rect class="sq-suspect" data-square="${index}" x="${col + 0.03}" y="${row + 0.03}" ` +
+          `width="0.94" height="0.94" fill="none" stroke="#d33" stroke-width="0.07" ` +
+          `stroke-dasharray="0.16 0.1" pointer-events="none"/>`,
       );
     }
   }

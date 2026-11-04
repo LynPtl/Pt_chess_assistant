@@ -91,7 +91,12 @@ async function waitForPage(port) {
 // expression would silently operate on the wrong document.
 const EXPRESSION = `(async () => {
   const want = ${JSON.stringify(url)};
-  const same = (a) => a.split("#")[0] === want.split("#")[0];
+  // 只比 origin + pathname：应用会把局面写进 query（?fen=…），
+  // 那是正常行为，不代表"没导航到目标页"。
+  const wantPath = new URL(want).origin + new URL(want).pathname;
+  const same = (a) => {
+    try { const u = new URL(a); return u.origin + u.pathname === wantPath; } catch { return false; }
+  };
   for (let i = 0; i < 400; i++) {
     if (same(location.href) && window.__done) break;
     await new Promise((r) => setTimeout(r, 50));

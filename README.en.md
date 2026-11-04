@@ -33,6 +33,9 @@ This project is only that missing piece. Everything else is En Croissant's job.
 | **Inference** | side to move, castling rights and the en-passant target from the "last move" highlight |
 | **Honest refusal** | low confidence / wrong king count / illegal FEN → visible warning, never silently sent to an engine |
 | **Recent positions** | every recognised position is kept in localStorage; click to set it up again |
+| **Shareable link** | the position is mirrored into the URL (`?fen=…`); "Copy link" gives someone the same position |
+| **Low-confidence marks** | squares the recogniser was unsure about get a red dashed outline, with a count underneath |
+| **Two languages** | UI in Chinese or English (`?lang=`, or your browser's language; switch in the footer) |
 | **Hand-off** | writes a `[SetUp][FEN]` PGN and launches En Croissant with it |
 
 ## What it does not do

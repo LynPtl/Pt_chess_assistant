@@ -658,3 +658,14 @@ table.fixtures tr.pass td:nth-child(3) {
 .site-footer a:hover {
   border-bottom-color: var(--accent);
 }
+
+.suspect-hint {
+  color: #c0392b;
+  font-size: 12px;
+}
+
+.footer-lang {
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}

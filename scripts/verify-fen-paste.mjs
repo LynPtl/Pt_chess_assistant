@@ -101,9 +101,11 @@ await sleep(800);
 const fen = await ev('document.querySelector(".placement")?.textContent ?? null');
 check("FEN 原样摆出（走子方 b、易位权 Qk 都照抄）", fen === FEN, fen);
 check("不显示截图", (await ev(`document.querySelectorAll('img[alt="你粘贴的截图"]').length`)) === 0);
+const caption = await ev('document.querySelector(".board-figure figcaption")?.textContent ?? ""');
 check(
-  "标题写「从 FEN 导入」而不是识别结果",
-  /从 FEN 导入/.test(await ev('document.querySelector(".board-figure figcaption")?.textContent ?? ""')),
+  "标题说明这是导入的 FEN、不是识别结果",
+  /FEN/i.test(caption) && !/confidence/i.test(caption),
+  caption.replace(/\s+/g, " ").slice(0, 60),
 );
 check(
   "走子方选的是黑方",

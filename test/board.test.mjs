@@ -86,3 +86,25 @@ test("棋子图片带 data-at 下标，拖拽时能定位到它", () => {
   const at = [...svg.matchAll(/data-at="(\d+)"/g)].map((m) => Number(m[1]));
   assert.deepEqual(at.sort((a, b) => a - b), [56, 63]); // a1 / h1
 });
+
+test("可疑格子会画上虚线框，其余不受影响", () => {
+  const svg = renderBoardSvg("8/8/8/8/8/8/8/K6k", false, PIECES, { suspicious: [56, 63] });
+  const marks = [...svg.matchAll(/class="sq-suspect" data-square="(\d+)"/g)].map((m) => Number(m[1]));
+  assert.deepEqual(marks.sort((a, b) => a - b), [56, 63]);
+  // 格子本身还是 64 个
+  assert.equal((svg.match(/class="sq"/g) ?? []).length, 64);
+});
+
+test("翻转时虚线框跟着格子走（位置对，不是数组下标）", () => {
+  const svg = renderBoardSvg("8/8/8/8/8/8/8/8", true, PIECES, { suspicious: [56] });
+  // 翻转后 a1 画在屏幕右上角
+  const mark = svg.match(/class="sq-suspect" data-square="56" x="([\d.]+)" y="([\d.]+)"/);
+  assert.ok(mark, "没找到标记");
+  assert.equal(Math.floor(Number(mark[1])), 7);
+  assert.equal(Math.floor(Number(mark[2])), 0);
+});
+
+test("没有可疑格子时不画任何虚线框", () => {
+  const svg = renderBoardSvg("8/8/8/8/8/8/8/K6k", false, PIECES);
+  assert.equal((svg.match(/sq-suspect/g) ?? []).length, 0);
+});

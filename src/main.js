@@ -15,6 +15,8 @@ import { actionsRow, castlingControls, dropzoneHtml, escapeHtml, footerHtml, not
 import { installBoardEditing } from "./board-editing.mjs";
 import { highlightSquares } from "./sampling.mjs";
 import { loadRecent, pushRecent } from "./history.mjs";
+import { suspiciousSquares } from "./suspicious.mjs";
+import { getLang, t } from "./i18n.mjs";
 import { inferTurn } from "./highlight.mjs";
 import { evaluatePosition } from "./guards.mjs";
 import { releaseResultUrl } from "./urls.mjs";
@@ -33,6 +35,8 @@ export const recognizer = createRecognizer({
 });
 
 const app = document.getElementById("app");
+// <html lang> 跟着界面语言走：读屏和翻译工具都靠它
+document.documentElement.lang = getLang() === "zh" ? "zh-CN" : "en";
 const service = createService();
 
 /** { kind: "idle" } | { kind: "scanning" } | { kind: "noboard", message? }
@@ -43,7 +47,7 @@ export let state = { kind: "idle" };
 /** Mirrors GET /healthz. Re-fetched on demand, because a user who just fixed
  *  config.json should not have to guess that the browser is showing a stale
  *  answer. */
-let health = { configured: false, reason: "还没连上本地服务" };
+let health = { configured: false, reason: t("notConnectedYet") };
 let notice = null; // { tone: "ok" | "error", text }
 
 async function refreshHealth() {
@@ -52,11 +56,11 @@ async function refreshHealth() {
 }
 
 async function shutdown() {
-  if (!window.confirm("停止本地服务？停止后这个页面就不能再识别了，要用就重新运行 start.bat。")) return;
+  if (!window.confirm(t("confirmStop"))) return;
   await service.shutdown().catch(() => {});
   state = { kind: "idle" };
   notice = null;
-  health = { configured: false, reason: "服务已停止。重新运行 start.bat 就能再用。" };
+  health = { configured: false, reason: t("serviceStopped") };
   render();
 }
 
@@ -64,10 +68,10 @@ async function openEnCroissant() {
   try {
     const body = await service.open();
     notice = body.ok
-      ? { tone: "ok", text: "已启动 En Croissant" }
-      : { tone: "error", text: body.error ?? "启动失败" };
+      ? { tone: "ok", text: t("started") }
+      : { tone: "error", text: body.error ?? t("startFailed") };
   } catch (err) {
-    notice = { tone: "error", text: `启动失败：${err.message}` };
+    notice = { tone: "error", text: t("startFailedWith", { msg: err.message }) };
   }
   render();
 }
@@ -79,7 +83,7 @@ async function scanDemo() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     await scanImage(await response.blob());
   } catch (err) {
-    notice = { tone: "error", text: `示例图加载失败：${err.message}` };
+    notice = { tone: "error", text: t("demoLoadFailed", { msg: err.message }) };
     render();
   }
 }
@@ -110,6 +114,8 @@ export async function scanImage(blob) {
       turnInferred: Boolean(inferred),
       inferredMover: inferred?.mover ?? null,
       highlights: highlights ?? [],
+      // 逐格置信度只用来标"这几格要人看一眼"，不参与任何判定
+      suspicious: suspiciousSquares(scan.confidences),
       imageUrl: URL.createObjectURL(blob),
       // Pixels cannot carry side to move or history, so these are the user's
       // to confirm: white to move, castling inferred from home squares.
@@ -125,8 +131,9 @@ export async function scanImage(blob) {
       history: [],
     };
     pushRecent(undefined, { fen: currentFen(), source: "screenshot" });
+    syncUrl();
   } catch (err) {
-    state = { kind: "noboard", message: `识别出错：${err.message}` };
+    state = { kind: "noboard", message: t("scanFailed", { msg: err.message }) };
   }
   render();
 }
@@ -212,11 +219,11 @@ function renderIdleOrScanning() {
 function renderNoBoard() {
   app.innerHTML = `
     <section class="dropzone">
-      <h1>没找到棋盘</h1>
+      <h1>${t("noBoardTitle")}</h1>
       <p class="hint">${escapeHtml(
-        state.message ?? "图片里没有可识别的棋盘，试试裁紧一点或换一张截图。",
+        state.message ?? t("noBoardHint"),
       )}</p>
-      <button type="button" data-action="reset">再试一张</button>
+      <button type="button" data-action="reset">${t("retry")}</button>
     </section>`;
   bind({ reset });
 }
@@ -238,22 +245,27 @@ function renderResult() {
       ${
         state.imageUrl
           ? `<figure>
-               <img src="${state.imageUrl}" alt="你粘贴的截图" />
-               <figcaption>你的截图</figcaption>
+               <img src="${state.imageUrl}" alt="${t("yourScreenshotAlt")}" />
+               <figcaption>${t("yourScreenshot")}</figcaption>
              </figure>`
           : ""
       }
       <figure class="board-figure">
-        ${renderBoardSvg(boardPlacement, false, PIECE_URLS)}
+        ${renderBoardSvg(boardPlacement, false, PIECE_URLS, { suspicious: state.suspicious ?? [] })}
         <figcaption>
           ${
             state.source === "fen"
-              ? "从 FEN 导入（未经识别，无需核对棋子）"
+              ? t("fromFen")
               : state.source === "pgn"
-                ? `从 PGN 导入 · 最终局面（${state.moveCount ?? 0} 着，未经识别）`
-                : `识别结果 · 平均置信度 ${confidence}%`
-          }${state.edited ? " · 已手动修正" : ""}
-          <br /><span class="edit-hint">点格子盖章 · 拖动棋子换位 · 右键擦掉</span>
+                ? t("fromPgn", { n: state.moveCount ?? 0 })
+                : t("recognised", { n: confidence })
+          }${state.edited ? t("edited") : ""}
+          ${
+            (state.suspicious ?? []).length
+              ? `<br /><span class="suspect-hint">${t("suspectHint", { n: state.suspicious.length })}</span>`
+              : ""
+          }
+          <br /><span class="edit-hint">${t("editHint")}</span>
         </figcaption>
         ${paletteHtml({
               activePiece: state.activePiece,
@@ -271,12 +283,12 @@ function renderResult() {
 
       <div class="controls">
         <div class="control">
-          <span class="control-label">走子方${
-            state.turnInferred ? `（高亮格推断：${state.inferredMover === "w" ? "白" : "黑"}刚走）` : ""
+          <span class="control-label">${t("turnLabel")}${
+            state.turnInferred ? t("turnInferred", { who: state.inferredMover === "w" ? t("white") : t("black") }) : ""
           }</span>
           <div class="toggle">
-            ${toggleButton("白方", state.turn === "w", "turn-w")}
-            ${toggleButton("黑方", state.turn === "b", "turn-b")}
+            ${toggleButton(t("white"), state.turn === "w", "turn-w")}
+            ${toggleButton(t("black"), state.turn === "b", "turn-b")}
           </div>
         </div>
         ${castlingControls({
@@ -287,8 +299,8 @@ function renderResult() {
               highlights: state.highlights,
             })}
         <div class="control">
-          <span class="control-label">棋盘</span>
-          <div class="toggle">${toggleButton("翻转视图", state.flipped, "flip")}</div>
+          <span class="control-label">${t("board")}</span>
+          <div class="toggle">${toggleButton(t("flip"), state.flipped, "flip")}</div>
         </div>
       </div>
 
@@ -308,6 +320,7 @@ function renderResult() {
   bind({
     reset,
     copy: copyFen,
+    link: copyLink,
     send: sendToEnCroissant,
     "refresh-health": refreshHealth,
     "open-app": openEnCroissant,
@@ -390,7 +403,7 @@ async function sendToEnCroissant() {
   if (!fen || !health.configured) return;
   const verdict = verdictFor(fen);
   if (verdict.blocked) return;
-  if (verdict.needsConfirm && !window.confirm("识别结果有警告，仍然送入 En Croissant？")) return;
+  if (verdict.needsConfirm && !window.confirm(t("confirmWarnings"))) return;
 
   try {
     const body = await service.handoff({
@@ -403,10 +416,10 @@ async function sendToEnCroissant() {
       reliable: state.scan.reliable,
     });
     notice = body.ok
-      ? { tone: "ok", text: "已送入 En Croissant" }
-      : { tone: "error", text: body.error ?? "送入失败" };
+      ? { tone: "ok", text: t("sent") }
+      : { tone: "error", text: body.error ?? t("sendFailed") };
   } catch (err) {
-    notice = { tone: "error", text: `送入失败：${err.message}` };
+    notice = { tone: "error", text: t("sendFailedWith", { msg: err.message }) };
   }
   render();
 }
@@ -417,9 +430,9 @@ async function copyFen() {
   if (!fen) return;
   try {
     await navigator.clipboard.writeText(fen);
-    notice = { tone: "ok", text: "FEN 已复制" };
+    notice = { tone: "ok", text: t("fenCopied") };
   } catch (err) {
-    notice = { tone: "error", text: `复制失败：${err.message}` };
+    notice = { tone: "error", text: t("copyFailed", { msg: err.message }) };
   }
   render();
 }
@@ -433,6 +446,33 @@ function undo() {
   notice = null;
   state = { ...state, placement: previous, history: history.slice(0, -1), edited: true };
   render();
+}
+
+/** 把当前局面做成可分享的链接（`?fen=...`），复制到剪贴板。 */
+async function copyLink() {
+  const fen = currentFen();
+  if (!fen) return;
+  const url = `${location.origin}${location.pathname}?fen=${encodeURIComponent(fen)}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    notice = { tone: "ok", text: t("linkCopied") };
+  } catch (err) {
+    notice = { tone: "error", text: t("copyFailed", { msg: err.message }) };
+  }
+  render();
+}
+
+/** 把当前局面同步到地址栏，刷新/收藏后还是这个局面。
+ *  开发钩子（?selftest / ?fixtures）模式下不动，免得把参数冲掉。 */
+function syncUrl() {
+  const params = new URLSearchParams(location.search);
+  if (params.has("selftest") || params.has("fixtures")) return;
+  const fen = currentFen();
+  const next = fen
+    ? `${location.pathname}?fen=${encodeURIComponent(fen)}`
+    : location.pathname;
+  if (`${location.pathname}${location.search}` === next) return;
+  history.replaceState(null, "", next);
 }
 
 function setCastling(side, choice) {
@@ -500,7 +540,7 @@ function loadFen({ placement, turn, castling, source = "fen", moveCount = 0 }) {
   releaseResultUrl(state);
   notice = {
     tone: "ok",
-    text: source === "pgn" ? `已从剪贴板载入 PGN（${moveCount} 着，显示最终局面）` : "已从剪贴板导入 FEN",
+    text: source === "pgn" ? t("pgnLoaded", { n: moveCount }) : t("fenLoaded"),
   };
   state = {
     kind: "result",
@@ -529,6 +569,7 @@ function loadFen({ placement, turn, castling, source = "fen", moveCount = 0 }) {
     analysis: { running: false, lines: [] },
   };
   pushRecent(undefined, { fen: currentFen(), source });
+  syncUrl();
   render();
 }
 
@@ -562,7 +603,7 @@ try {
 
 if (staticMode) {
   // 静态托管没有本地服务，连探测都不做
-  health = { configured: false, reason: "静态版：没有本地服务" };
+  health = { configured: false, reason: t("staticNoService") };
   render();
 } else {
   await refreshHealth();
@@ -596,11 +637,19 @@ async function upscaleToWidth(blob, targetWidth) {
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   const scaled = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-  if (!scaled) throw new Error(`无法生成 ${canvas.width}x${canvas.height} 的测试图`);
+  if (!scaled) throw new Error(t("testImageFailed", { w: canvas.width, h: canvas.height }));
   return scaled;
 }
 
 render();
+
+// 链接里带着局面（?fen=...）就直接摆出来
+{
+  const shared = parseFenInput(new URLSearchParams(location.search).get("fen") ?? "");
+  if (shared && !new URLSearchParams(location.search).has("selftest")) {
+    loadFen(shared);
+  }
+}
 
 // Dev hooks live in their own module; installed only when the query string asks.
 // 静态版没有 /fixtures/* 路由，装了也只会 404。
