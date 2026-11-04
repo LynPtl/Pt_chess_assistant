@@ -68,6 +68,18 @@ async function openEnCroissant() {
   render();
 }
 
+/** 「用示例图试一下」：拉一张随包发布的图，走和生产完全一样的识别路径。 */
+async function scanDemo() {
+  try {
+    const response = await fetch("demo.png");
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    await scanImage(await response.blob());
+  } catch (err) {
+    notice = { tone: "error", text: `示例图加载失败：${err.message}` };
+    render();
+  }
+}
+
 export async function scanImage(blob) {
   releaseResultUrl(state);
   state = { kind: "scanning" };

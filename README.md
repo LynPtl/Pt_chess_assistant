@@ -4,6 +4,9 @@
 
 识别、拼 FEN、写 PGN、启动分析器全在本机完成，**图片不出浏览器、不上传任何服务器**。
 
+**在线试（静态版，无需安装）**：<https://pt-chess-assistant.ptlantern.workers.dev>
+—— 只能"贴图/贴 FEN → 摆好 → 复制 FEN 或去 lichess 分析"，没有本地引擎（那是设计如此）。
+
 ![首页](docs/images/01-paste.png)
 
 ---
@@ -182,37 +185,46 @@ git clone https://github.com/CSSLab/maia3.git
 
 ---
 
-## 部署成纯静态版（Cloudflare Pages 之类）
+## 部署成纯静态版（Cloudflare）
 
 同一份代码，一个构建开关就是两种形态。静态版**没有后端**：
 
 - 识别、摆棋、编辑、拖动、撤销 —— 全在浏览器里，照旧
 - 顶部那条「已连上 / 检测 / 停止服务」整条不渲染
 - 结果页只剩 `复制 FEN` / `在 lichess 分析` / `再试一张`
+- 首页多一个「用这张示例图试一下」，谁都能点开就看效果
 
 ```bash
-npm run build:static       # 产物在 dist/；内部会设 VITE_STATIC=1，不用额外环境变量
-npx serve dist             # 或者 python -m http.server -d dist
+npm run build:static     # 产物在 dist/；内部设 VITE_STATIC=1，不用额外环境变量
+npx serve dist           # 本地看效果
 ```
 
-**Cloudflare Pages 设置**：Build command `npm run build:static`，Output directory `dist`。
-不需要环境变量，也**不需要为它开分支** —— 两种形态共享同一份代码，避免以后修 bug 要改两遍。
-
-静态版上线前值得跑一遍：
+**部署**（Cloudflare 已经把 Pages 并入 Workers，静态站点用 assets 声明）：
 
 ```bash
-node scripts/verify-static.mjs http://127.0.0.1:3000/
+npx wrangler login       # 一次即可
+npm run deploy:cf        # = build:static + wrangler deploy
 ```
 
-它会验证：没有本地状态条、识别可用、没有「送入」按钮、给了 lichess 入口，
-以及**整个流程零请求打到 `/healthz`、`/handoff` 之类**（也就是真的不需要后端）。
+`wrangler.jsonc` 里已经写好了 `assets.directory = ./dist` 与站点名 `pt-chess-assistant`。
+首次部署会给出形如 `https://pt-chess-assistant.<你的子域>.workers.dev` 的地址。
+
+> 以前那种 `wrangler pages deploy` 现在会被 wrangler 转交到 Workers 流程然后报
+> "Missing entry-point"；用上面的 `wrangler deploy` + assets 即可。
+
+**上线前值得跑一遍**（我每次部署都跑）：
+
+```bash
+node scripts/verify-static.mjs https://<你的地址>/
+```
+
+它验证：没有本地状态条、示例图可读、识别可用、没有「送入」按钮、给了 lichess 入口、
+编辑仍然可用，以及**整个流程零请求打到 `/healthz`、`/handoff` 之类**。
 
 两点差异要知道：
 
-- `?fixtures=1` / `?selftest=` 在静态版里用不了 —— 它们读的是 Node 服务的 `/fixtures/*`
-- 静态版**没有引擎**（Maia / Stockfish 都是本地进程），分析这一步交给
-  「**在 lichess 分析**」按钮：它把当前 FEN 拼进 `lichess.org/analysis/standard/...` 打开。
-  本地版也给了同一个按钮，想快速对比时可以少复制一次
+- `?fixtures=1` / `?selftest=` 在静态版里用不了 —— 它们读的是本地 Node 服务的 `/fixtures/*`
+- 静态版没有引擎：分析交给「在 lichess 分析」（把当前 FEN 拼进 lichess 的 URL）
 
 ## 开发与测试
 
@@ -222,13 +234,16 @@ npm run build            # 生产构建
 npm run verify           # 真实浏览器：盖章/擦除/拖拽/撤销/Ctrl+Z/提示条（需先 npm start）
 npm run verify:fen       # 真实浏览器：粘贴 FEN 摆棋
 npm run build:static     # 静态版构建（无后端）
-npm run verify:static    # 静态版验收（需先把 dist/ 用静态服务器托管）
+npm run verify:static    # 静态版验收（dist/ 用任意静态服务器托管，或直接指线上地址）
 ```
 
 浏览器回归用的是 **Chrome DevTools 协议**（不是 Playwright），原因有两个：Playwright 会被依赖约束排除；
 而且 `chrome --dump-dom` 在 load 时就返回，等不到 wasm 的异步识别，必须挂到页面自己的完成信号上。
 
 `?fixtures=1` 可以在页面里跑 10 张真实截图的识别回归；`?selftest=<文件名>` 只跑一张。
+
+⚠️ 本地版和静态版都写同一个 `dist/`，所以**本地回归必须在 `npm run build` 之后跑**：
+`dist/` 里留着静态构建时，`?selftest=` 那套开发钩子根本不存在，回归会"找不到棋盘"。
 
 ### 代码结构
 
@@ -252,7 +267,7 @@ scripts/
   browser-check.mjs         无头 Chrome 的通用求值器
   verify-interactions.mjs   交互回归
   verify-fen-paste.mjs      FEN 粘贴回归
-  verify-static.mjs         静态版回归（确认真的不需要后端）
+  verify-static.mjs         静态版回归（可指向线上地址）
   build-static.mjs          静态版构建（设 VITE_STATIC=1 后调 vite）
 ```
 

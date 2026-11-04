@@ -1,6 +1,7 @@
 .superpowers/
 .tmp-*.mjs
 .tmp/
+.wrangler/
 config.json
 dist/
 logs/

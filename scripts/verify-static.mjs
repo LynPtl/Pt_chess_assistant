@@ -83,7 +83,11 @@ const ev = async (expr) =>
 
 await call("Runtime.enable");
 await call("Network.enable");
-await sleep(2500);
+// 线上 CDN 冷启动可能慢，等到 dropzone 真的出现为止
+for (let i = 0; i < 100; i++) {
+  if (await ev('Boolean(document.querySelector(".dropzone, .result"))')) break;
+  await sleep(200);
+}
 
 const results = [];
 const check = (name, ok, detail) => results.push({ name, ok, detail });
@@ -92,14 +96,14 @@ check("静态版不渲染本地服务状态条", (await ev('document.querySelect
 
 // 用一张相对路径的图当"用户的截图"，走真实的 paste → 识别 路径
 const sample = await ev(`(async () => {
-  const img = document.querySelector(".dropzone") ? "sample.png" : null;
+  const img = "demo.png";
   if (!img) return "no-dropzone";
   const res = await fetch(img);
   if (!res.ok) return "no-sample:" + res.status;
   window.__file = new File([await res.blob()], "sample.png", { type: "image/png" });
   return "ok";
 })()`);
-check("静态服务里能找到一张样例图（sample.png）", sample === "ok", sample);
+check("随包发布的示例图 demo.png 可读", sample === "ok", sample);
 
 if (sample === "ok") {
   await ev(`(() => {

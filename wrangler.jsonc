@@ -1,0 +1,11 @@
+{
+  // Cloudflare 现在把 Pages 并入了 Workers：静态站点用 "assets" 声明即可，
+  // 等价于以前 `pages deploy dist` 的效果，但走的是当前支持的路径。
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pt-chess-assistant",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

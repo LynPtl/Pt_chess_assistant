@@ -15,7 +15,8 @@
     "setup": "powershell -ExecutionPolicy Bypass -File scripts/setup.ps1",
     "build:static": "node scripts/build-static.mjs",
     "prebuild:static": "node scripts/sync-assets.mjs",
-    "verify:static": "node scripts/verify-static.mjs"
+    "verify:static": "node scripts/verify-static.mjs",
+    "deploy:cf": "npm run build:static && wrangler deploy"
   },
   "keywords": [
     "chess",
@@ -36,7 +37,8 @@
     "onnxruntime-web": "^1.26.0"
   },
   "devDependencies": {
-    "vite": "^7.3.7"
+    "vite": "^7.3.7",
+    "wrangler": "^4.157.0"
   },
   "engines": {
     "node": ">=22"

@@ -137,6 +137,9 @@ export function dropzoneHtml({ busy }) {
         <kbd>Ctrl</kbd>+<kbd>V</kbd> 任意位置粘贴 · 拖入图片 · 或点这里选择文件
       </p>
       <p class="hint hint-small">
+        手边没有截图？<button type="button" class="link-btn" data-action="demo">用这张示例图试一下</button>
+      </p>
+      <p class="hint hint-small">
         也可以直接粘贴一段 FEN，例如
         <code>r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b Qk - 0 1</code>
       </p>
