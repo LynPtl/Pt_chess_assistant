@@ -94,6 +94,26 @@ const check = (name, ok, detail) => results.push({ name, ok, detail });
 
 check("静态版不渲染本地服务状态条", (await ev('document.querySelectorAll(".service-status").length')) === 0);
 
+// 首页那个「用这张示例图试一下」：点它只会加载示例图，
+// 绝不能顺带弹出文件选择器（事件冒泡到 .dropzone 的老 bug）。
+await ev(`(() => {
+  window.__fileClicks = 0;
+  document.querySelector("#file")?.addEventListener("click", (e) => { e.preventDefault(); window.__fileClicks++; });
+  document.querySelector('[data-action="demo"]')?.click();
+  return true;
+})()`);
+for (let i = 0; i < 60; i++) {
+  if (await ev('Boolean(document.querySelector(".placement"))')) break;
+  await sleep(250);
+}
+check("点「示例图」能出局面", Boolean(await ev('document.querySelector(".placement")?.textContent')), "没有 FEN");
+check("点「示例图」不会顺带弹出文件选择器", (await ev("window.__fileClicks")) === 0, `触发了 ${await ev("window.__fileClicks")} 次`);
+await ev(`document.querySelector('[data-action="reset"]')?.click()`);
+for (let i = 0; i < 40; i++) {
+  if (await ev('Boolean(document.querySelector(".dropzone"))')) break;
+  await sleep(100);
+}
+
 // 用一张相对路径的图当"用户的截图"，走真实的 paste → 识别 路径
 const sample = await ev(`(async () => {
   const img = "demo.png";

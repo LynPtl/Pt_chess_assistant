@@ -166,7 +166,12 @@ function renderIdleOrScanning() {
     ${noticeBlock(notice)}
     ${dropzoneHtml({ busy })}
   `;
-  app.querySelector(".dropzone").addEventListener("click", () => app.querySelector("#file").click());
+  // 只有点在"空白处"才打开文件选择器：框里还有示例图按钮和可复制的 FEN 文本，
+  // 点它们不该顺带弹出文件对话框（事件会冒泡到 .dropzone）。
+  app.querySelector(".dropzone").addEventListener("click", (event) => {
+    if (event.target.closest("[data-action], a, input, code, kbd")) return;
+    app.querySelector("#file").click();
+  });
   app.querySelector("#file").addEventListener("change", (event) => {
     const file = event.target.files?.[0];
     if (file) void scanImage(file);
