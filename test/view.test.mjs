@@ -61,3 +61,27 @@ test("paletteHtml：选中的那颗按钮带 on", () => {
   const html = paletteHtml({ activePiece: "q", pieceUrls: urls, palette: "KQRBNPkqrbnp".split("") });
   assert.match(html, /class="palette-btn on" data-piece="q"/);
 });
+
+test("actionsRow：有历史时给「撤销」，没有时禁用", async () => {
+  const { actionsRow } = await import("../src/view.mjs");
+  const withHistory = actionsRow({ canUndo: true, configured: true, blocked: false });
+  assert.match(withHistory, /data-action="undo"/);
+  assert.doesNotMatch(withHistory, /data-action="undo" disabled/);
+
+  const withoutHistory = actionsRow({ canUndo: false, configured: true, blocked: false });
+  assert.match(withoutHistory, /data-action="undo"[^>]*disabled/);
+});
+
+test("actionsRow：未配置时没有送入按钮，只提示复制 FEN", async () => {
+  const { actionsRow } = await import("../src/view.mjs");
+  const html = actionsRow({ canUndo: false, configured: false, blocked: false, reason: "路径不存在" });
+  assert.doesNotMatch(html, /data-action="send"/);
+  assert.match(html, /还不能送入/);
+  assert.match(html, /路径不存在/);
+});
+
+test("actionsRow：局面不合法时送入按钮禁用", async () => {
+  const { actionsRow } = await import("../src/view.mjs");
+  const html = actionsRow({ canUndo: false, configured: true, blocked: true });
+  assert.match(html, /data-action="send"[^>]*disabled/);
+});

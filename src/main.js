@@ -3,11 +3,11 @@ import { renderBoardSvg } from "./board.mjs";
 import { pickImageFile } from "./paste.mjs";
 import { composeFen, flipPlacement, isPlausible } from "./fen.mjs";
 import { resolveRights } from "./castling.mjs";
-import { moveSquare, stampSquare } from "./edit.mjs";
+import { moveSquare, pushHistory, stampSquare } from "./edit.mjs";
 import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
 import { createService } from "./service.mjs";
 import { installDevHooks } from "./devhooks.mjs";
-import { castlingControls, escapeHtml, noticeBlock, paletteHtml, statusStrip, toggleButton } from "./view.mjs";
+import { actionsRow, castlingControls, escapeHtml, noticeBlock, paletteHtml, statusStrip, toggleButton } from "./view.mjs";
 import { installBoardEditing } from "./board-editing.mjs";
 import { inferFromHighlights } from "./sampling.mjs";
 import { evaluatePosition } from "./guards.mjs";
@@ -99,6 +99,7 @@ export async function scanImage(blob) {
       flipped: false,
       edited: false,
       activePiece: null,
+      history: [],
     };
   } catch (err) {
     state = { kind: "noboard", message: `识别出错：${err.message}` };
@@ -232,26 +233,13 @@ function renderResult() {
         </div>
       </div>
 
-      <div class="actions">
-        ${
-          health.configured
-            ? `<button type="button" class="primary" data-action="send" ${
-                verdict.blocked ? "disabled" : ""
-              }>送入 En Croissant</button>`
-            : ""
-        }
-        <label class="close-first" title="En Croissant 每次送入都会新开一个窗口；勾上就先把已开的关掉">
-          <input type="checkbox" data-action="close-first" ${service.closeFirst() ? "checked" : ""} />
-          先关掉旧窗口
-        </label>
-        <button type="button" data-action="copy">复制 FEN</button>
-        <button type="button" data-action="reset">再试一张</button>
-      </div>
-      ${
-        health.configured
-          ? ""
-          : `<p class="hint">还不能送入：${escapeHtml(health.reason ?? "")}。改好 <code>config.json</code>，再点上面的「重新检测」。</p>`
-      }
+      ${actionsRow({
+        canUndo: (state.history ?? []).length > 0,
+        configured: health.configured,
+        blocked: verdict.blocked,
+        reason: health.reason ?? "",
+        closeFirst: service.closeFirst(),
+      })}
     </section>`;
 
   bindBoardEditing();
@@ -263,6 +251,7 @@ function renderResult() {
     "refresh-health": refreshHealth,
     "open-app": openEnCroissant,
     shutdown,
+    undo,
     "turn-w": () => setOption({ turn: "w", turnInferred: false }),
     "turn-b": () => setOption({ turn: "b", turnInferred: false }),
     "castle-w-on": () => setCastling("w", "on"),
@@ -285,7 +274,12 @@ function editSquare(screenIndex, piece) {
   const next = stampSquare(state.placement, placementIndex, piece);
   if (next === state.placement) return;
   notice = null;
-  state = { ...state, placement: next, edited: true };
+  state = {
+    ...state,
+    placement: next,
+    edited: true,
+    history: pushHistory(state.history, state.placement),
+  };
   render();
 }
 
@@ -317,7 +311,12 @@ function movePieceTo(screenIndex, to) {
   const next = moveSquare(state.placement, from, target);
   if (next === state.placement) return;
   notice = null;
-  state = { ...state, placement: next, edited: true };
+  state = {
+    ...state,
+    placement: next,
+    edited: true,
+    history: pushHistory(state.history, state.placement),
+  };
   render();
 }
 
@@ -362,6 +361,17 @@ async function copyFen() {
   render();
 }
 
+/** 撤销一步编辑（盖章 / 擦除 / 拖动都算）。历史只在本次识别内有效——
+ *  重新贴一张图就是新局面，旧的撤销没有意义。 */
+function undo() {
+  const history = state.history ?? [];
+  if (history.length === 0) return;
+  const previous = history[history.length - 1];
+  notice = null;
+  state = { ...state, placement: previous, history: history.slice(0, -1), edited: true };
+  render();
+}
+
 function setCastling(side, choice) {
   notice = null;
   state = { ...state, castling: { ...state.castling, [side]: choice } };
@@ -386,6 +396,16 @@ function render() {
   if (state.kind === "noboard") return renderNoBoard();
   return renderResult();
 }
+
+// Ctrl+Z / Cmd+Z 撤销一步编辑。只在结果页生效，且不要在输入框里抢键。
+window.addEventListener("keydown", (event) => {
+  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "z") return;
+  if (state.kind !== "result") return;
+  const tag = document.activeElement?.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA") return;
+  event.preventDefault();
+  undo();
+});
 
 window.addEventListener("paste", (event) => {
   const file = pickImageFile(event.clipboardData?.items);

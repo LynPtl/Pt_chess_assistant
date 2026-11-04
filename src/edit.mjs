@@ -86,3 +86,10 @@ export function moveSquare(placement, from, to) {
   cells[from] = "";
   return collapse(cells);
 }
+
+/** Remember a placement before it changes, keeping the most recent `limit`.
+ *  Returns a new array so callers can treat history as immutable state. */
+export function pushHistory(history, placement, limit = 30) {
+  const next = [...(history ?? []), placement];
+  return next.length > limit ? next.slice(-limit) : next;
+}

@@ -80,3 +80,19 @@ test("moveSquare：摆位坏了也不抛错", async () => {
   const { moveSquare } = await import("../src/edit.mjs");
   assert.equal(moveSquare("nonsense", 0, 8), "nonsense");
 });
+
+test("pushHistory：保留最近若干步，返回新数组", async () => {
+  const { pushHistory } = await import("../src/edit.mjs");
+  const a = pushHistory([], "A");
+  assert.deepEqual(a, ["A"]);
+  const b = pushHistory(a, "B");
+  assert.deepEqual(b, ["A", "B"]);
+  assert.deepEqual(a, ["A"], "原数组不能被改");
+});
+
+test("pushHistory：超过上限就丢最老的", async () => {
+  const { pushHistory } = await import("../src/edit.mjs");
+  let history = [];
+  for (const p of ["1", "2", "3", "4", "5"]) history = pushHistory(history, p, 3);
+  assert.deepEqual(history, ["3", "4", "5"]);
+});

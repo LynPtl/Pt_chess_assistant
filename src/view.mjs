@@ -88,3 +88,24 @@ export function paletteHtml({ activePiece, pieceUrls, palette }) {
 export function toggleButton(label, active, action) {
   return `<button type="button" class="${active ? "on" : ""}" data-action="${action}">${label}</button>`;
 }
+
+/** 底部按钮区：撤销、送入、复制 FEN、再来一张，以及"还不能送入"的说明。 */
+export function actionsRow({ canUndo, configured, blocked, reason = "", closeFirst = false }) {
+  const send = configured
+    ? `<button type="button" class="primary" data-action="send" ${blocked ? "disabled" : ""}>送入 En Croissant</button>`
+    : "";
+  const hint = configured
+    ? ""
+    : `<p class="hint">还不能送入：${escapeHtml(reason)}。改好 <code>config.json</code>，再点上面的「重新检测」。</p>`;
+  return `<div class="actions">
+      <button type="button" data-action="undo" ${canUndo ? "" : "disabled"} title="Ctrl+Z">撤销</button>
+      ${send}
+      <label class="close-first" title="En Croissant 每次送入都会新开一个窗口；勾上就先把已开的关掉">
+        <input type="checkbox" data-action="close-first" ${closeFirst ? "checked" : ""} />
+        先关掉旧窗口
+      </label>
+      <button type="button" data-action="copy">复制 FEN</button>
+      <button type="button" data-action="reset">再试一张</button>
+    </div>
+    ${hint}`;
+}

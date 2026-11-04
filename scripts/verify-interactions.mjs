@@ -123,6 +123,7 @@ const begun = await fen();
 check("页面渲染出 FEN", Boolean(begun), begun);
 check("调色板 13 项", (await ev('document.querySelectorAll("[data-piece]").length')) === 13);
 check("两侧易位按钮共 4 个", (await ev('document.querySelectorAll("[data-action^=castle]").length')) === 4);
+check("一开始撤销是禁用的", (await ev('document.querySelector("[data-action=undo]").disabled')) === true);
 check("棋盘棋子都带 data-at", (await ev('document.querySelectorAll("svg.board image[data-at]").length')) > 0);
 
 // 盖章
@@ -147,6 +148,23 @@ check("拖动棋子能换位", dragged !== begun && dragged.includes("2n1P3"), d
 // 撤销？没有；再拖回去，确认可逆
 await dragSquare(20, 36);
 check("再拖回来能复原", (await fen()) === begun);
+
+// 撤销：按钮和 Ctrl+Z 都要能把局面退回去
+await ev('document.querySelector("[data-piece=\\"q\\"]").click()');
+await sleep(150);
+await clickSquare(27);
+const beforeUndo = await fen();
+check("编辑后撤销可用", (await ev('document.querySelector("[data-action=undo]").disabled')) === false);
+await ev('document.querySelector("[data-action=undo]").click()');
+await sleep(300);
+check("点撤销能退回上一步", (await fen()) === begun, beforeUndo);
+
+await clickSquare(27);
+await sleep(150);
+await call("Input.dispatchKeyEvent", { type: "keyDown", key: "z", code: "KeyZ", windowsVirtualKeyCode: 90, modifiers: 2 });
+await call("Input.dispatchKeyEvent", { type: "keyUp", key: "z", code: "KeyZ", windowsVirtualKeyCode: 90, modifiers: 2 });
+await sleep(300);
+check("Ctrl+Z 能撤销", (await fen()) === begun);
 
 // 提示条：送入 / 复制 FEN 之后必须能看见反馈。这条曾经因为
 // noticeBlock() 少传参数而静默失效——按钮点了，页面毫无反应。
