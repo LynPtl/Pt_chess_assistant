@@ -96,9 +96,15 @@ export function toggleButton(label, active, action) {
 export function actionsRow({ configured, blocked, reason = "", closeFirst = false, staticMode = false, fen = null }) {
   // 一个局面除了"交给本地 GUI"，另一条常见出路是直接丢到 lichess 分析 ——
   // 静态版（没有后端）就只剩这一条。
+  const icExternal =
+    '<svg class="ext-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
+    'stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" ' +
+    'aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-8.5 8.5"/>' +
+    '<path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>';
   const lichess = fen
-    ? `<a class="btn" href="https://lichess.org/analysis/standard/${fen.replaceAll(" ", "_")}"
-          target="_blank" rel="noreferrer" title="把这个局面发到 lichess 分析（会用浏览器打开）">在 lichess 分析</a>`
+    ? `<a class="btn accent" href="https://lichess.org/analysis/standard/${fen.replaceAll(" ", "_")}"
+          target="_blank" rel="noreferrer" title="把这个局面发到 lichess 分析（会在新标签页打开）"
+        >在 lichess 分析${icExternal}</a>`
     : "";
 
   if (staticMode) {

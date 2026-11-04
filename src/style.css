@@ -164,6 +164,21 @@ a.btn:hover {
   border-color: var(--accent);
 }
 
+/* 「在 lichess 分析」：次要但重要，用主题色描边区分，外链图标提示会新开标签页 */
+a.btn.accent {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+a.btn.accent:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+a.btn .ext-icon {
+  flex: none;
+  opacity: 0.85;
+}
+
 #selftest {
   width: min(1080px, 94vw);
   margin: 0 auto 24px;

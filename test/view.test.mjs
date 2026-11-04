@@ -140,3 +140,13 @@ test("statusStrip：静态模式不渲染本地服务状态", async () => {
   const { statusStrip } = await import("../src/view.mjs");
   assert.equal(statusStrip({ configured: true, reason: "" }, { staticMode: true }), "");
 });
+
+test("actionsRow：lichess 入口带外链图标、且用主题色区分", async () => {
+  const { actionsRow } = await import("../src/view.mjs");
+  const fen = "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1";
+  const html = actionsRow({ staticMode: true, fen });
+  assert.match(html, /class="btn accent"/);
+  assert.match(html, /<svg class="ext-icon"/, "要有外链图标");
+  assert.match(html, /target="_blank" rel="noreferrer"/, "外链要新开标签页");
+  assert.match(html, /在 lichess 分析<svg/, "图标在文字后面");
+});
