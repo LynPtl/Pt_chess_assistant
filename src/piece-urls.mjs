@@ -1,17 +1,17 @@
 // Vite turns each .svg import into a hashed asset URL, so the board can point
-// at the cburnett pieces lichess ships (see ./pieces/NOTICE.md).
-import wK from "./pieces/cburnett/wK.svg";
-import wQ from "./pieces/cburnett/wQ.svg";
-import wR from "./pieces/cburnett/wR.svg";
-import wB from "./pieces/cburnett/wB.svg";
-import wN from "./pieces/cburnett/wN.svg";
-import wP from "./pieces/cburnett/wP.svg";
-import bK from "./pieces/cburnett/bK.svg";
-import bQ from "./pieces/cburnett/bQ.svg";
-import bR from "./pieces/cburnett/bR.svg";
-import bB from "./pieces/cburnett/bB.svg";
-import bN from "./pieces/cburnett/bN.svg";
-import bP from "./pieces/cburnett/bP.svg";
+// at the Spatial pieces lichess ships (see ./pieces/NOTICE.md). MIT, like this repo.
+import wK from "./pieces/spatial/wK.svg";
+import wQ from "./pieces/spatial/wQ.svg";
+import wR from "./pieces/spatial/wR.svg";
+import wB from "./pieces/spatial/wB.svg";
+import wN from "./pieces/spatial/wN.svg";
+import wP from "./pieces/spatial/wP.svg";
+import bK from "./pieces/spatial/bK.svg";
+import bQ from "./pieces/spatial/bQ.svg";
+import bR from "./pieces/spatial/bR.svg";
+import bB from "./pieces/spatial/bB.svg";
+import bN from "./pieces/spatial/bN.svg";
+import bP from "./pieces/spatial/bP.svg";
 
 /** FEN piece char → asset URL, for renderBoardSvg. */
 export const PIECE_URLS = {

@@ -1,11 +1,7 @@
 {
-  "name": "mychess",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "name": "pt-chess-assistant",
+  "version": "0.1.0",
+  "description": "本地国际象棋截图/FEN 摆棋器：粘贴截图或 FEN → 可编辑棋盘 → 交给 En Croissant 用 Maia 3 / Stockfish 分析",
   "scripts": {
     "start": "node src/server.mjs",
     "build": "vite build",
@@ -15,11 +11,21 @@
     "dev": "vite",
     "prebuild": "node scripts/sync-assets.mjs",
     "verify": "node scripts/verify-interactions.mjs",
-    "verify:fen": "node scripts/verify-fen-paste.mjs"
+    "verify:fen": "node scripts/verify-fen-paste.mjs",
+    "setup": "powershell -ExecutionPolicy Bypass -File scripts/setup.ps1"
   },
-  "keywords": [],
+  "keywords": [
+    "chess",
+    "fen",
+    "screenshot",
+    "onnx",
+    "wasm",
+    "maia",
+    "stockfish",
+    "en-croissant"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "@scoriiu/fenshot": "^0.1.5",
@@ -31,5 +37,13 @@
   },
   "engines": {
     "node": ">=22"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LynPtl/Pt_chess_assistant.git"
+  },
+  "bugs": {
+    "url": "https://github.com/LynPtl/Pt_chess_assistant/issues"
+  },
+  "homepage": "https://github.com/LynPtl/Pt_chess_assistant#readme"
 }

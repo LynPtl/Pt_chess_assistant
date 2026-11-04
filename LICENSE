@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 ptlan
+Copyright (c) 2026 LynPtl
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,11 +22,13 @@ SOFTWARE.
 
 ---
 
-EXCEPTION — third-party assets under a different licence:
+Third-party components, all under permissive licences compatible with the above:
 
-  src/pieces/cburnett/*.svg
+  src/pieces/spatial/*.svg
+    Spatial chess pieces by Maurizio Monge — MIT — via lichess-org/lila.
+    See src/pieces/NOTICE.md.
 
-The cburnett chess piece set is by Colin M.L. Burnett and is licensed
-GPLv2+ (see src/pieces/NOTICE.md). Those files are NOT covered by the MIT
-licence above; if you redistribute this repository or a build of it, the
-GPLv2+ terms apply to them. Everything else in this repository is MIT.
+  @scoriiu/fenshot (npm)            — MIT — chessboard detection + tile classifier
+  onnxruntime-web (npm)             — MIT — wasm inference runtime
+  chess.js (npm)                    — BSD-2-Clause — rules engine, FEN validation
+  test/fixtures/*.png (fenshot set) — MIT — regression corpus
