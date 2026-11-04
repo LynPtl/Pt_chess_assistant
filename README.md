@@ -322,8 +322,11 @@ node scripts/browser-check.mjs "http://127.0.0.1:8787/?fixtures=1"
 - 易位权先看位置（王在 e1/e8、车在角上），再用同一个"上一步高亮"缩小范围：
   高亮格里有王或某个角车 → 那个权利视为已失效。这修掉了最常见的错——"王出宫又回 e1"凭空多出易位权
 - 反过来，如果截图上的高亮不是"上一步"（比如鼠标选中了棋子），这两处推断都会错——所以它们永远可被一键覆盖
-- 易位权按"王和车还在原位"推断，会**偏乐观**（王回过家就会凭空多出权利），可一键改成"无"
 - 吃过路兵与回合数固定写成 `- 0 1`
+
+**Maia 3（已装并实测）**：5M / 23M / 79M 三个权重都可离线加载；按一次前向就出结果，
+`go nodes 1` 与 `go depth 5` / `go infinite` 输出相同（它不是搜索型引擎）。缓存已热时
+5M ≈ 3.2s、23M ≈ 3.5s、79M ≈ 4.3s —— 绝大部分是 Python + torch 启动，不是推理。
 
 **实测结论（En Croissant 0.15.1，本机已装）**：
 
@@ -332,12 +335,14 @@ node scripts/browser-check.mjs "http://127.0.0.1:8787/?fixtures=1"
   里选中你装好的引擎即可，之后每个新标签页都要选一次（或按你配置的默认引擎走）。
 - **配置改动即时生效**：`/healthz` 每次请求都重新读 `config.json`，所以点「重新检测」就行；
   只有 `port` 改了才需要重启（端口在启动时就绑定了）。
-- **每次送入都会新开一个窗口。** 虽然它带 `tauri-plugin-single-instance`，
-  实测第二个实例没有退出（`en-croissant.exe` 进程数 1 → 2）。介意的话送之前先关掉旧窗口。
-  想改善的话，En Croissant 支持 `encroissant://import?url=<pgn 地址>` 深链，
-  可以把「spawn exe」换成「打开深链」——这是本工具当前版本没做的。
-- **Maia 3 的启动超时**未测（本机没装 torch）。同一位置已验证 Stockfish 19 能被识别
-  （Engines 页显示 VERSION 19），所以引擎槽本身没问题，剩下的只是 Maia 3 的加载耗时。
+- **每次送入都会新开一个窗口。** 虽然它带 `tauri-plugin-single-instance`，实测无效
+  （第二次启动后连续 12 秒稳定留下 2 个进程）。**页面上有「先关掉旧窗口」勾选框**可解：
+  勾上后先结束旧实例再启动（实测 PID 会变、只剩 1 个进程）。
+  注意：旧窗口里未保存的分析会随之丢失。
+- **深链方案不可行**（试过了，记在这里免得再试）：`encroissant://import?url=` 走的是
+  `src/utils/import.ts#getGameFromUrl`，它只接受 chess.com / lichess.org 的 URL，
+  本地 PGN 地址直接抛 `Failed to load game from unsupported URL`。所以没法把局面
+  交给已经开着的那个窗口。
 
 已验证的（在这台机器上跑过）：
 
