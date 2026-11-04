@@ -1,4 +1,5 @@
 .superpowers/
+.tmp-*.mjs
 .tmp/
 config.json
 dist/
