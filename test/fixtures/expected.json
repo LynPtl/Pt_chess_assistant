@@ -48,5 +48,10 @@
     "fen": "r2q1rk1/pp2ppbp/2P3p1/2n1n3/2P5/P1N4P/1PB1QPP1/R1B2RK1",
     "expect": "match",
     "orientation": "white"
+  },
+  "lichess-user-flipped-g6.png": {
+    "fen": "r1b1kbnr/2pq3p/p2p1pp1/2p1pP2/2B1P3/5N2/PPP3PP/RNBQK2R",
+    "expect": "match",
+    "orientation": "black"
   }
 }

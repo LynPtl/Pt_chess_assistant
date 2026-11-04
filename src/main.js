@@ -9,9 +9,11 @@ import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
 import { createService } from "./service.mjs";
 import { installDevHooks } from "./devhooks.mjs";
 import { staticMode } from "./mode.mjs";
+import { rotateHighlights } from "./highlight.mjs";
 import { actionsRow, castlingControls, dropzoneHtml, escapeHtml, noticeBlock, paletteHtml, statusStrip, toggleButton } from "./view.mjs";
 import { installBoardEditing } from "./board-editing.mjs";
-import { inferFromHighlights } from "./sampling.mjs";
+import { highlightSquares } from "./sampling.mjs";
+import { inferTurn } from "./highlight.mjs";
 import { evaluatePosition } from "./guards.mjs";
 import { releaseResultUrl } from "./urls.mjs";
 import "./style.css";
@@ -93,7 +95,11 @@ export async function scanImage(blob) {
       return;
     }
     const { placement, orientation } = resolveOrientation(scan.placement);
-    const { inferred, highlights } = await inferFromHighlights(blob, scan.corners, placement);
+    // 高亮格来自图像坐标；黑方视角时摆位被纠正过，两者差 180°，必须先转正，
+    // 然后再拿纠正后的摆位去查棋子 —— 顺序错了走子方就会反。
+    const raw = await highlightSquares(blob, scan.corners);
+    const highlights = orientation === "black" ? rotateHighlights(raw) : raw;
+    const inferred = inferTurn(placement, highlights);
     state = {
       kind: "result",
       scan,
@@ -105,7 +111,7 @@ export async function scanImage(blob) {
       imageUrl: URL.createObjectURL(blob),
       // Pixels cannot carry side to move or history, so these are the user's
       // to confirm: white to move, castling inferred from home squares.
-      // `flipped` starts false because resolveOrientation already returned the
+      // `flipped` 只是显示方向，不参与 FEN；`resolveOrientation` 已经给出
       // corrected placement; flipping it is the override for a wrong call.
       turn: inferred?.turn ?? "w",
       // 每侧三态：auto = 按推断，on/off = 用户明确指定
@@ -128,14 +134,16 @@ export function reset() {
   render();
 }
 
-/** 生效后的摆位：翻转只是显示层，但易位权要在"真实方向"上推。 */
-function effectivePlacement() {
+/** 棋盘上"看到的"摆位：`flipped` 现在只是**显示**方向，不再旋转局面本身。
+ *  想看黑方视角就翻它，FEN 和易位权一个字都不会变。
+ *  真认错了朝向，用编辑器里的「旋转局面」——那是改局面本身（可撤销）。 */
+function displayPlacement() {
   return state.flipped ? flipPlacement(state.placement) : state.placement;
 }
 
 /** 每一侧的易位权：auto 用推断值，on 用位置上支持的全部，off 用无。 */
 function resolvedRights() {
-  return resolveRights(effectivePlacement(), state.highlights ?? [], state.castling ?? {});
+  return resolveRights(state.placement, state.highlights ?? [], state.castling ?? {});
 }
 
 function currentFen() {
@@ -143,9 +151,10 @@ function currentFen() {
   return composeFen(state.placement, {
     turn: state.turn,
     rights: resolvedRights(),
-    flipped: state.flipped,
+    // 注意：不传 flipped —— 「翻转视图」只影响怎么画，绝不改动 FEN。
+    // 需要改局面本身时用编辑器里的「旋转局面」，那会真的旋转 placement。
     // 吃过路兵同样是历史：只有上一步是兵走两格时才成立，靠高亮格推。
-    enPassant: inferEnPassant(effectivePlacement(), state.turn, state.highlights ?? []) ?? "-",
+    enPassant: inferEnPassant(state.placement, state.turn, state.highlights ?? []) ?? "-",
   });
 }
 
@@ -200,7 +209,7 @@ function renderNoBoard() {
 function renderResult() {
   const fen = currentFen();
   const verdict = verdictFor(fen);
-  const boardPlacement = effectivePlacement();
+  const boardPlacement = displayPlacement();
   const confidence = Math.round(state.scan.meanConfidence * 100);
 
   const banners = verdict.warnings
@@ -258,7 +267,7 @@ function renderResult() {
             })}
         <div class="control">
           <span class="control-label">棋盘</span>
-          <div class="toggle">${toggleButton("翻转", state.flipped, "flip")}</div>
+          <div class="toggle">${toggleButton("翻转视图", state.flipped, "flip")}</div>
         </div>
       </div>
 
@@ -290,6 +299,7 @@ function renderResult() {
     "castle-b-on": () => setCastling("b", "on"),
     "castle-b-off": () => setCastling("b", "off"),
     flip: () => setOption({ flipped: !state.flipped }),
+    rotate: rotatePosition,
   });
 
   // 复选框用的是 change 而不是 click：bind() 只挂 click
@@ -396,6 +406,19 @@ async function copyFen() {
 
 /** 撤销一步编辑（盖章 / 擦除 / 拖动都算）。历史只在本次识别内有效——
  *  重新贴一张图就是新局面，旧的撤销没有意义。 */
+/** 识别出的朝向反了才用这个：把摆位整体转 180°。这是**改局面**，所以会重算
+ *  易位权，也能撤销 —— 和「翻转视图」是两件事。 */
+function rotatePosition() {
+  notice = null;
+  state = {
+    ...state,
+    placement: flipPlacement(state.placement),
+    edited: true,
+    history: pushHistory(state.history, state.placement),
+  };
+  render();
+}
+
 function undo() {
   const history = state.history ?? [];
   if (history.length === 0) return;

@@ -85,3 +85,9 @@ test("samplePoints 给 64 个格子各 4 个取样点，且都落在格子内", 
   const [first] = points[0];
   assert.ok(first[0] > 0 && first[0] < 100, String(first[0]));
 });
+
+test("rotateHighlights：黑方视角的截图要把高亮格转 180° 才能和纠正后的摆位对齐", async () => {
+  const { rotateHighlights } = await import("../src/highlight.mjs");
+  assert.deepEqual(rotateHighlights([45, 52]), [18, 11]);
+  assert.deepEqual(rotateHighlights([]), []);
+});

@@ -150,3 +150,11 @@ test("actionsRow：lichess 入口带外链图标、且用主题色区分", async
   assert.match(html, /target="_blank" rel="noreferrer"/, "外链要新开标签页");
   assert.match(html, /在 lichess 分析<svg/, "图标在文字后面");
 });
+
+test("paletteHtml：编辑器里有「旋转局面」和「撤销」并排", async () => {
+  const { paletteHtml } = await import("../src/view.mjs");
+  const urls = Object.fromEntries("KQRBNPkqrbnp".split("").map((c) => [c, `/p/${c}.svg`]));
+  const html = paletteHtml({ activePiece: null, pieceUrls: urls, palette: "KQRBNPkqrbnp".split(""), canUndo: true });
+  assert.match(html, /data-action="rotate"/);
+  assert.match(html, /data-action="undo"/);
+});

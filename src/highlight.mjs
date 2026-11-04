@@ -95,3 +95,11 @@ export function samplePoints(x0, y0, width, height) {
   }
   return points;
 }
+
+/** 高亮格是在**图像空间**里找到的（左上角为 0），而摆位经过 resolveOrientation
+ *  之后是**真实空间**（白方在下）。黑方视角的截图两者差一个 180°，不转就会拿
+ *  错的格子去查棋子 —— 走子方和易位权都会因此判错。 */
+export function rotateHighlights(indices) {
+  if (!Array.isArray(indices)) return [];
+  return indices.map((i) => 63 - i);
+}

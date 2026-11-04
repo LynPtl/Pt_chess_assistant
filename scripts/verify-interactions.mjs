@@ -175,6 +175,24 @@ await call("Input.dispatchKeyEvent", { type: "keyUp", key: "z", code: "KeyZ", wi
 await sleep(300);
 check("Ctrl+Z 能撤销", (await fen()) === begun);
 
+// 「翻转视图」只是看的方向，绝不能改动 FEN（曾把易位权一起改掉）
+const beforeFlip = await fen();
+await ev(`document.querySelector('[data-action="flip"]').click()`);
+await sleep(300);
+check("翻转视图不改 FEN", (await fen()) === beforeFlip, await fen());
+await ev(`document.querySelector('[data-action="flip"]').click()`);
+await sleep(200);
+check("翻转回来还是原样", (await fen()) === beforeFlip);
+
+// 「旋转局面」是改局面本身，会改 FEN，也能撤销
+await ev(`document.querySelector('[data-action="rotate"]').click()`);
+await sleep(300);
+const afterRotate = await fen();
+check("旋转局面会改 FEN", afterRotate !== beforeFlip, afterRotate);
+await ev(`document.querySelector('[data-action="undo"]').click()`);
+await sleep(300);
+check("旋转局面可以撤销", (await fen()) === beforeFlip, await fen());
+
 // 提示条：送入 / 复制 FEN 之后必须能看见反馈。这条曾经因为
 // noticeBlock() 少传参数而静默失效——按钮点了，页面毫无反应。
 const configured = (await ev('document.querySelector(".service-status")?.classList.contains("ok")')) === true;

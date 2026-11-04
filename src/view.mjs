@@ -84,6 +84,7 @@ export function paletteHtml({ activePiece, pieceUrls, palette, canUndo = false }
     `data-piece="" title="擦除">⌫</button>` +
     `<span class="palette-label">擦除（右键点格子更快）</span>` +
     `<button type="button" class="undo-btn" data-action="undo" title="撤销上一步（Ctrl+Z）" ${canUndo ? "" : "disabled"}>↶ 撤销</button>` +
+    `<button type="button" class="undo-btn" data-action="rotate" title="识别出的朝向反了就转 180°（这会改局面本身，易位权随之重算）">⟳ 旋转局面</button>` +
     `</div>`;
   return `<div class="palette">${row(white)}${row(black)}${eraser}</div>`;
 }
