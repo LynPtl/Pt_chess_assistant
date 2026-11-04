@@ -1,6 +1,6 @@
 import { appendFileSync, createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
-import { describeListenError, launchProcess, openInBrowser } from "./spawn-helpers.mjs";
+import { describeListenError, killRunning, launchProcess, openInBrowser } from "./spawn-helpers.mjs";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Chess } from "chess.js";
@@ -172,6 +172,9 @@ async function handleHandoff(req, res, ctx) {
     json(res, 500, { ok: false, error: `写入 PGN 失败: ${err.message}` });
     return;
   }
+
+  const stopOld = ctx.deps.killRunning ?? ((command) => killRunning(command));
+  if (payload.closeFirst === true) await stopOld(live.enCroissantPath);
 
   try {
     (ctx.deps.launch ?? defaultLaunch(live))(pgnPath);

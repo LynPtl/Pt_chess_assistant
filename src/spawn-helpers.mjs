@@ -45,3 +45,39 @@ export function describeListenError(err, port) {
   }
   return `本地服务启动失败：${err?.message ?? err}`;
 }
+
+/** Stop any running instance of `command`, so the next launch does not pile a
+ *  second window on top of the first. En Croissant registers
+ *  tauri-plugin-single-instance but it does not actually prevent a second
+ *  process (measured: two live processes 12s after the second launch), and its
+ *  deep-link route only accepts chess.com / lichess.org URLs, so handing the
+ *  position to the running window is not possible from outside.
+ *
+ *  Best effort: a missing taskkill or an already-dead app is not an error.
+ */
+export function killRunning(command, platform = process.platform, spawnImpl = nodeSpawn) {
+  if (!command) return Promise.resolve();
+  const name = command.split(/[\/]/).pop();
+  const [cmd, args] =
+    platform === "win32" ? ["taskkill", ["/F", "/IM", name]] : ["pkill", ["-f", command]];
+
+  // 必须等到真的退出再启动新实例，否则 taskkill 会把刚开的新窗口一起杀掉。
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    try {
+      const child = spawnImpl(cmd, args, { stdio: "ignore", windowsHide: true });
+      child.on?.("error", done);
+      child.on?.("exit", done);
+      child.on?.("close", done);
+      // 卡住的 taskkill 不能把交接堵死
+      setTimeout(done, 3000).unref?.();
+    } catch {
+      done();
+    }
+  });
+}

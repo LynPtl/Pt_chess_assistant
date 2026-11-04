@@ -240,3 +240,80 @@ test("GET /shutdown 返回 405 且不关机", async (t) => {
   assert.equal((await fetch(`${base}/shutdown`)).status, 405);
   assert.equal(stopped, 0);
 });
+
+test("closeFirst: true 时先结束旧窗口再启动", async (t) => {
+  const ws = makeWorkspace();
+  const order = [];
+  const server = createServer(
+    { enCroissantPath: ws.exe, port: 0, pgnTempDir: ws.pgnTempDir, logPath: ws.logPath },
+    {
+      staticRoot: mkdtempSync(join(tmpdir(), "mychess-cf-")),
+      launch: (p) => order.push(["launch", p]),
+      killRunning: () => order.push(["kill"]),
+    },
+  );
+  server.listen(0, "127.0.0.1");
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  await new Promise((r) => server.once("listening", r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  const res = await post(base, { fen: FEN, closeFirst: true });
+
+  assert.equal(res.status, 200);
+  assert.deepEqual(order.map(([k]) => k), ["kill", "launch"]);
+});
+
+test("默认不杀旧进程", async (t) => {
+  const ws = makeWorkspace();
+  const order = [];
+  const server = createServer(
+    { enCroissantPath: ws.exe, port: 0, pgnTempDir: ws.pgnTempDir, logPath: ws.logPath },
+    {
+      staticRoot: mkdtempSync(join(tmpdir(), "mychess-cf2-")),
+      launch: () => order.push("launch"),
+      killRunning: () => order.push("kill"),
+    },
+  );
+  server.listen(0, "127.0.0.1");
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  await new Promise((r) => server.once("listening", r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  await post(base, { fen: FEN });
+  assert.deepEqual(order, ["launch"]);
+});
+
+test("closeFirst：必须等旧进程真的关掉再启动（否则会杀掉刚开的新窗口）", async (t) => {
+  const ws = makeWorkspace();
+  const order = [];
+  const server = createServer(
+    { enCroissantPath: ws.exe, port: 0, pgnTempDir: ws.pgnTempDir, logPath: ws.logPath },
+    {
+      staticRoot: mkdtempSync(join(tmpdir(), "mychess-cf3-")),
+      launch: () => order.push("launch"),
+      killRunning: () =>
+        new Promise((resolve) =>
+          setTimeout(() => {
+            order.push("kill");
+            resolve();
+          }, 80),
+        ),
+    },
+  );
+  server.listen(0, "127.0.0.1");
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+  await new Promise((r) => server.once("listening", r));
+
+  await post(`http://127.0.0.1:${server.address().port}`, { fen: FEN, closeFirst: true });
+
+  assert.deepEqual(order, ["kill", "launch"]);
+});

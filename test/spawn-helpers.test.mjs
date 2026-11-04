@@ -84,3 +84,44 @@ test("describeListenError 对其它错误保留原始信息", async () => {
   const msg = describeListenError({ code: "EACCES", message: "permission denied" }, 8787);
   assert.match(msg, /permission denied/);
 });
+
+test("killRunning 用 taskkill 按镜像名结束 Windows 进程", async () => {
+  const { killRunning } = await import("../src/spawn-helpers.mjs");
+  const calls = [];
+  killRunning("C:/apps/en-croissant/en-croissant.exe", "win32", (cmd, args) => {
+    calls.push({ cmd, args });
+    return { on() {}, unref() {} };
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].cmd, "taskkill");
+  assert.deepEqual(calls[0].args, ["/F", "/IM", "en-croissant.exe"]);
+});
+
+test("killRunning 在非 Windows 上用 pkill -f 匹配配置的路径", async () => {
+  const { killRunning } = await import("../src/spawn-helpers.mjs");
+  const calls = [];
+  killRunning("/usr/local/bin/en-croissant", "linux", (cmd, args) => {
+    calls.push({ cmd, args });
+    return { on() {}, unref() {} };
+  });
+  assert.equal(calls[0].cmd, "pkill");
+  assert.deepEqual(calls[0].args, ["-f", "/usr/local/bin/en-croissant"]);
+});
+
+test("killRunning 不会因为没装 taskkill 而崩", async () => {
+  const { killRunning } = await import("../src/spawn-helpers.mjs");
+  const boom = () => {
+    throw new Error("ENOENT");
+  };
+  assert.doesNotThrow(() => killRunning("x.exe", "win32", boom));
+});
+
+test("killRunning 对空路径什么都不做", async () => {
+  const { killRunning } = await import("../src/spawn-helpers.mjs");
+  let called = 0;
+  killRunning("", "win32", () => {
+    called++;
+    return { on() {}, unref() {} };
+  });
+  assert.equal(called, 0);
+});

@@ -443,3 +443,16 @@ table.fixtures tr.pass td:nth-child(3) {
   opacity: 0.9;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
 }
+
+.close-first {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.close-first input {
+  accent-color: var(--accent);
+}

@@ -36,6 +36,25 @@ export let state = { kind: "idle" };
 let health = { configured: false, reason: "还没连上本地服务" };
 let notice = null; // { tone: "ok" | "error", text }
 
+/** En Croissant 的单实例保护实测无效（第二次启动会留下第二个进程），而深链只认
+ *  chess.com/lichess 的 URL，没法把局面交给已开着的窗口。所以给一个可选的
+ *  "先关掉旧窗口"——默认关，用户勾过就一直记住。 */
+function closeFirst() {
+  try {
+    return localStorage.getItem("mychess-close-first") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setCloseFirst(value) {
+  try {
+    localStorage.setItem("mychess-close-first", value ? "1" : "0");
+  } catch {
+    /* 隐私模式下写不进去，忽略 */
+  }
+}
+
 async function refreshHealth() {
   try {
     health = await (await fetch("/healthz")).json();
@@ -220,6 +239,7 @@ async function sendToEnCroissant() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        closeFirst: closeFirst(),
         fen,
         turn: state.turn,
         castlingMode: state.castling,
@@ -399,6 +419,10 @@ function renderResult() {
               }>送入 En Croissant</button>`
             : ""
         }
+        <label class="close-first" title="En Croissant 每次送入都会新开一个窗口；勾上就先把已开的关掉">
+          <input type="checkbox" data-action="close-first" ${closeFirst() ? "checked" : ""} />
+          先关掉旧窗口
+        </label>
         <button type="button" data-action="copy">复制 FEN</button>
         <button type="button" data-action="reset">再试一张</button>
       </div>
@@ -425,6 +449,11 @@ function renderResult() {
     "castle-b-on": () => setCastling("b", "on"),
     "castle-b-off": () => setCastling("b", "off"),
     flip: () => setOption({ flipped: !state.flipped }),
+  });
+
+  // 复选框用的是 change 而不是 click：bind() 只挂 click
+  app.querySelector('[data-action="close-first"]')?.addEventListener("change", (event) => {
+    setCloseFirst(event.currentTarget.checked);
   });
 }
 
