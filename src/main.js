@@ -261,7 +261,9 @@ function renderResult() {
           </div>
         </div>
         ${castlingControls({
-              placement: boardPlacement,
+              // 用真实摆位，不用"显示用"的翻转版：否则一翻转王就"离开 e1"，
+              // 按钮会改口说没有易位权，和下面那行 FEN 自相矛盾。
+              placement: state.placement,
               castling: state.castling,
               highlights: state.highlights,
             })}

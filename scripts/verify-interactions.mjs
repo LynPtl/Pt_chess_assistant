@@ -184,6 +184,16 @@ await ev(`document.querySelector('[data-action="flip"]').click()`);
 await sleep(200);
 check("翻转回来还是原样", (await fen()) === beforeFlip);
 
+// 翻转视图时，易位权按钮也必须一字不变（曾出现"FEN 说有、按钮说没有"）
+const castleState = () =>
+  ev(`[...document.querySelectorAll('[data-action^=castle]')].map(b => b.className + '|' + b.disabled).join(',')`);
+const castlesBefore = await castleState();
+await ev(`document.querySelector('[data-action="flip"]').click()`);
+await sleep(300);
+check("翻转视图不改易位权按钮", (await castleState()) === castlesBefore, await castleState());
+await ev(`document.querySelector('[data-action="flip"]').click()`);
+await sleep(200);
+
 // 「旋转局面」是改局面本身，会改 FEN，也能撤销
 await ev(`document.querySelector('[data-action="rotate"]').click()`);
 await sleep(300);
