@@ -62,14 +62,9 @@ test("paletteHtml：选中的那颗按钮带 on", () => {
   assert.match(html, /class="palette-btn on" data-piece="q"/);
 });
 
-test("actionsRow：有历史时给「撤销」，没有时禁用", async () => {
+test("actionsRow：撤销不放这里（它属于棋盘编辑器）", async () => {
   const { actionsRow } = await import("../src/view.mjs");
-  const withHistory = actionsRow({ canUndo: true, configured: true, blocked: false });
-  assert.match(withHistory, /data-action="undo"/);
-  assert.doesNotMatch(withHistory, /data-action="undo" disabled/);
-
-  const withoutHistory = actionsRow({ canUndo: false, configured: true, blocked: false });
-  assert.match(withoutHistory, /data-action="undo"[^>]*disabled/);
+  assert.doesNotMatch(actionsRow({ configured: true, blocked: false }), /data-action="undo"/);
 });
 
 test("actionsRow：未配置时没有送入按钮，只提示复制 FEN", async () => {
@@ -84,4 +79,36 @@ test("actionsRow：局面不合法时送入按钮禁用", async () => {
   const { actionsRow } = await import("../src/view.mjs");
   const html = actionsRow({ canUndo: false, configured: true, blocked: true });
   assert.match(html, /data-action="send"[^>]*disabled/);
+});
+
+test("paletteHtml：撤销放在调色板那一行，紧跟擦除", async () => {
+  const { paletteHtml } = await import("../src/view.mjs");
+  const urls = Object.fromEntries("KQRBNPkqrbnp".split("").map((c) => [c, `/p/${c}.svg`]));
+
+  const withHistory = paletteHtml({ activePiece: null, pieceUrls: urls, palette: "KQRBNPkqrbnp".split(""), canUndo: true });
+  assert.match(withHistory, /data-action="undo"/);
+  assert.doesNotMatch(withHistory, /data-action="undo"[^>]*disabled/);
+  // 撤销和擦除在同一行（palette-erase 里）
+  const eraseRow = withHistory.slice(withHistory.indexOf("palette-erase"));
+  assert.match(eraseRow, /data-action="undo"/);
+
+  const withoutHistory = paletteHtml({ activePiece: null, pieceUrls: urls, palette: "KQRBNPkqrbnp".split(""), canUndo: false });
+  assert.match(withoutHistory, /data-action="undo"[^>]*disabled/);
+});
+
+test("dropzoneHtml：首页同时提示截图和 FEN 两种用法", async () => {
+  const { dropzoneHtml } = await import("../src/view.mjs");
+  const html = dropzoneHtml({ busy: false });
+  assert.match(html, /FEN/, "提示里要提到能粘贴 FEN");
+  assert.match(html, /Ctrl/);
+  assert.match(html, /拖入图片/);
+  assert.match(html, /type="file"/);
+  assert.match(html, /data-zone="drop"/);
+});
+
+test("dropzoneHtml：识别中不允许再点开文件选择", async () => {
+  const { dropzoneHtml } = await import("../src/view.mjs");
+  const busy = dropzoneHtml({ busy: true });
+  assert.match(busy, /正在识别/);
+  assert.match(busy, /class="dropzone busy"/);
 });

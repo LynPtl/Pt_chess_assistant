@@ -8,7 +8,7 @@ import { parseFenInput } from "./import-fen.mjs";
 import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
 import { createService } from "./service.mjs";
 import { installDevHooks } from "./devhooks.mjs";
-import { actionsRow, castlingControls, escapeHtml, noticeBlock, paletteHtml, statusStrip, toggleButton } from "./view.mjs";
+import { actionsRow, castlingControls, dropzoneHtml, escapeHtml, noticeBlock, paletteHtml, statusStrip, toggleButton } from "./view.mjs";
 import { installBoardEditing } from "./board-editing.mjs";
 import { inferFromHighlights } from "./sampling.mjs";
 import { evaluatePosition } from "./guards.mjs";
@@ -151,12 +151,8 @@ function renderIdleOrScanning() {
   app.innerHTML = `
     ${statusStrip(health)}
     ${noticeBlock(notice)}
-    <section class="dropzone ${busy ? "busy" : ""}">
-      <h1>粘贴棋盘截图</h1>
-      <p class="hint"><kbd>Ctrl</kbd>+<kbd>V</kbd> 任意位置粘贴 · 拖入图片 · 或点这里选择文件</p>
-      <div class="status">${busy ? "正在识别…" : ""}</div>
-      <input id="file" type="file" accept="image/*" hidden />
-    </section>`;
+    ${dropzoneHtml({ busy })}
+  `;
   app.querySelector(".dropzone").addEventListener("click", () => app.querySelector("#file").click());
   app.querySelector("#file").addEventListener("change", (event) => {
     const file = event.target.files?.[0];
@@ -212,6 +208,7 @@ function renderResult() {
               activePiece: state.activePiece,
               pieceUrls: PIECE_URLS,
               palette: PALETTE,
+            canUndo: (state.history ?? []).length > 0,
             })}
       </figure>
     </section>
@@ -243,7 +240,6 @@ function renderResult() {
       </div>
 
       ${actionsRow({
-        canUndo: (state.history ?? []).length > 0,
         configured: health.configured,
         blocked: verdict.blocked,
         reason: health.reason ?? "",

@@ -462,3 +462,27 @@ table.fixtures tr.pass td:nth-child(3) {
   grid-template-columns: minmax(280px, 560px);
   justify-content: center;
 }
+
+.undo-btn {
+  margin-left: auto;
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.undo-btn[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.hint-small {
+  font-size: 12px;
+}
+
+.hint-small code {
+  padding: 1px 4px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  word-break: break-all;
+}

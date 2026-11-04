@@ -67,7 +67,7 @@ export function castlingControls({ placement, castling, highlights }) {
 }
 
 /** 白子一行、黑子一行；擦除单独放一个小的工具按钮，免得和棋子一样大。 */
-export function paletteHtml({ activePiece, pieceUrls, palette }) {
+export function paletteHtml({ activePiece, pieceUrls, palette, canUndo = false }) {
   const button = (piece) =>
     `<button type="button" class="palette-btn ${activePiece === piece ? "on" : ""}" ` +
     `data-piece="${piece}" title="${piece === "" ? "擦除" : piece}">` +
@@ -81,6 +81,7 @@ export function paletteHtml({ activePiece, pieceUrls, palette }) {
     `<button type="button" class="palette-btn small ${activePiece === "" ? "on" : ""}" ` +
     `data-piece="" title="擦除">⌫</button>` +
     `<span class="palette-label">擦除（右键点格子更快）</span>` +
+    `<button type="button" class="undo-btn" data-action="undo" title="撤销上一步（Ctrl+Z）" ${canUndo ? "" : "disabled"}>↶ 撤销</button>` +
     `</div>`;
   return `<div class="palette">${row(white)}${row(black)}${eraser}</div>`;
 }
@@ -90,7 +91,7 @@ export function toggleButton(label, active, action) {
 }
 
 /** 底部按钮区：撤销、送入、复制 FEN、再来一张，以及"还不能送入"的说明。 */
-export function actionsRow({ canUndo, configured, blocked, reason = "", closeFirst = false }) {
+export function actionsRow({ configured, blocked, reason = "", closeFirst = false }) {
   const send = configured
     ? `<button type="button" class="primary" data-action="send" ${blocked ? "disabled" : ""}>送入 En Croissant</button>`
     : "";
@@ -98,7 +99,6 @@ export function actionsRow({ canUndo, configured, blocked, reason = "", closeFir
     ? ""
     : `<p class="hint">还不能送入：${escapeHtml(reason)}。改好 <code>config.json</code>，再点上面的「重新检测」。</p>`;
   return `<div class="actions">
-      <button type="button" data-action="undo" ${canUndo ? "" : "disabled"} title="Ctrl+Z">撤销</button>
       ${send}
       <label class="close-first" title="En Croissant 每次送入都会新开一个窗口；勾上就先把已开的关掉">
         <input type="checkbox" data-action="close-first" ${closeFirst ? "checked" : ""} />
@@ -108,4 +108,21 @@ export function actionsRow({ canUndo, configured, blocked, reason = "", closeFir
       <button type="button" data-action="reset">再试一张</button>
     </div>
     ${hint}`;
+}
+
+/** 首页的投放区。截图和 FEN 两条路都要写在上面——只在代码里支持、
+ *  界面上不提，等于没有这个功能。 */
+export function dropzoneHtml({ busy }) {
+  return `<section class="dropzone ${busy ? "busy" : ""}" data-zone="drop">
+      <h1>粘贴棋盘截图，或者一段 FEN</h1>
+      <p class="hint">
+        <kbd>Ctrl</kbd>+<kbd>V</kbd> 任意位置粘贴 · 拖入图片 · 或点这里选择文件
+      </p>
+      <p class="hint hint-small">
+        也可以直接粘贴一段 FEN，例如
+        <code>r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b Qk - 0 1</code>
+      </p>
+      <div class="status">${busy ? "正在识别…" : ""}</div>
+      <input id="file" type="file" accept="image/*" hidden />
+    </section>`;
 }

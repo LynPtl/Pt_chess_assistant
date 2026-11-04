@@ -131,6 +131,8 @@ r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b Qk - 0 1
 
 ### 2. 回到浏览器，按 `Ctrl` + `V`
 
+（如果你手上是 FEN 而不是截图，跳过第 1 步，直接粘 FEN —— 见下面一节。）
+
 在页面任意位置按就行，不用点输入框。一秒左右出结果：
 
 ![识别结果](docs/images/02-result.png)
