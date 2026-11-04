@@ -141,17 +141,26 @@ figcaption {
   word-break: break-all;
 }
 
-button {
+/* 链接按钮（比如「在 lichess 分析」）要和真按钮长得一样，
+   否则同一个动作栏里一半是方块一半是蓝字下划线，很难看。 */
+button,
+.actions a.btn,
+a.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 14px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--panel);
   color: inherit;
   font: inherit;
+  text-decoration: none;
   cursor: pointer;
 }
 
-button:hover {
+button:hover,
+a.btn:hover {
   border-color: var(--accent);
 }
 
@@ -210,6 +219,7 @@ button:hover {
 
 .actions {
   display: flex;
+  align-items: center;
   gap: 10px;
   flex-wrap: wrap;
   width: 100%;

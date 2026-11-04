@@ -172,7 +172,12 @@ function renderIdleOrScanning() {
     if (file) void scanImage(file);
     event.target.value = "";
   });
-  bind({ "refresh-health": refreshHealth, "open-app": openEnCroissant, shutdown });
+  bind({
+    "refresh-health": refreshHealth,
+    "open-app": openEnCroissant,
+    shutdown,
+    demo: () => void scanDemo(),
+  });
 }
 
 function renderNoBoard() {
