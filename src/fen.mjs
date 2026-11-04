@@ -66,8 +66,8 @@ export function isPlausible(placement) {
  *  it (see castling.mjs) because the side is chosen per side in the UI, and a
  *  single all-or-nothing flag cannot express "white may still castle, black
  *  may not". */
-export function composeFen(placement, { turn, rights = { w: "-", b: "-" }, flipped }) {
+export function composeFen(placement, { turn, rights = { w: "-", b: "-" }, flipped, enPassant = "-" }) {
   const p = flipped ? flipPlacement(placement) : placement;
   const letters = `${rights.w ?? ""}${rights.b ?? ""}`.replace(/-/g, "");
-  return `${p} ${turn} ${letters || "-"} - 0 1`;
+  return `${p} ${turn} ${letters || "-"} ${enPassant || "-"} 0 1`;
 }

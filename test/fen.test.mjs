@@ -46,3 +46,15 @@ test("isPlausible 要求双方各恰好一个王", () => {
   assert.equal(isPlausible("8/8/8/8/8/8/8/8"), false);
   assert.equal(isPlausible("4k3/8/8/8/8/8/8/4K2K"), false);
 });
+
+test("composeFen：吃过路兵字段能被写进去", async () => {
+  const { composeFen } = await import("../src/fen.mjs");
+  assert.equal(
+    composeFen(ITALIAN, { turn: "b", rights: { w: "-", b: "-" }, flipped: false, enPassant: "e3" }),
+    "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b - e3 0 1",
+  );
+  assert.equal(
+    composeFen(ITALIAN, { turn: "w", rights: { w: "-", b: "-" }, flipped: false }),
+    "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w - - 0 1",
+  );
+});

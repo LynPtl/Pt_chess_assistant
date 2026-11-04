@@ -3,7 +3,7 @@ import { renderBoardSvg } from "./board.mjs";
 import { pickImageFile } from "./paste.mjs";
 import { composeFen, flipPlacement, isPlausible } from "./fen.mjs";
 import { resolveRights } from "./castling.mjs";
-import { moveSquare, pushHistory, stampSquare } from "./edit.mjs";
+import { inferEnPassant, moveSquare, pushHistory, stampSquare } from "./edit.mjs";
 import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
 import { createService } from "./service.mjs";
 import { installDevHooks } from "./devhooks.mjs";
@@ -130,6 +130,8 @@ function currentFen() {
     turn: state.turn,
     rights: resolvedRights(),
     flipped: state.flipped,
+    // 吃过路兵同样是历史：只有上一步是兵走两格时才成立，靠高亮格推。
+    enPassant: inferEnPassant(effectivePlacement(), state.turn, state.highlights ?? []) ?? "-",
   });
 }
 

@@ -96,3 +96,37 @@ test("pushHistory：超过上限就丢最老的", async () => {
   for (const p of ["1", "2", "3", "4", "5"]) history = pushHistory(history, p, 3);
   assert.deepEqual(history, ["3", "4", "5"]);
 });
+
+test("inferEnPassant：白兵刚走两格 → 黑方可以吃过路兵", async () => {
+  const { inferEnPassant } = await import("../src/edit.mjs");
+  // e2→e4 刚走完：高亮在 e2(52) 与 e4(36)，现在轮到黑方
+  const placement = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR";
+  assert.equal(inferEnPassant(placement, "b", [52, 36]), "e3");
+});
+
+test("inferEnPassant：黑兵刚走两格 → 白方可以吃过路兵", async () => {
+  const { inferEnPassant } = await import("../src/edit.mjs");
+  // e7→e5：高亮在 e7(12) 与 e5(28)，轮到白方
+  const placement = "rnbqkbnr/pppp1ppp/8/4p3/8/8/PPPPPPPP/RNBQKBNR";
+  assert.equal(inferEnPassant(placement, "w", [12, 28]), "e6");
+});
+
+test("inferEnPassant：位移不是两格就不给", async () => {
+  const { inferEnPassant } = await import("../src/edit.mjs");
+  const placement = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR";
+  assert.equal(inferEnPassant(placement, "b", [44, 36]), null); // e3→e4？不合规则
+});
+
+test("inferEnPassant：高亮跟走子方不一致就不给", async () => {
+  const { inferEnPassant } = await import("../src/edit.mjs");
+  // 白兵推进但轮到白方走 → 逻辑矛盾，不猜
+  const placement = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR";
+  assert.equal(inferEnPassant(placement, "w", [52, 36]), null);
+});
+
+test("inferEnPassant：没有高亮或少于两格 → 不给", async () => {
+  const { inferEnPassant } = await import("../src/edit.mjs");
+  const placement = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR";
+  assert.equal(inferEnPassant(placement, "b", []), null);
+  assert.equal(inferEnPassant(placement, "b", [36]), null);
+});

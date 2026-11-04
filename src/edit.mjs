@@ -93,3 +93,39 @@ export function pushHistory(history, placement, limit = 30) {
   const next = [...(history ?? []), placement];
   return next.length > limit ? next.slice(-limit) : next;
 }
+
+const FILES = "abcdefgh";
+
+/** 吃过路兵也是"历史"，不是画面：只有当**上一步**是兵走两格时才合法。
+ *
+ *  高亮格给出上一步的起点与终点，于是：同列、相距两格、且落点上确实站着一个
+ *  属于"刚走那方"的兵 → 中间被跳过的那个格子就是 ep 目标。
+ *  任何一条不满足都返回 null（宁可不写，也不编一个假的 ep）。
+ */
+export function inferEnPassant(placement, turn, highlights = []) {
+  const cells = expand(placement);
+  if (!cells || !Array.isArray(highlights) || highlights.length !== 2) return null;
+
+  const [a, b] = highlights;
+  const fileA = a % 8;
+  const fileB = b % 8;
+  if (fileA !== fileB) return null;
+
+  const rowA = Math.floor(a / 8);
+  const rowB = Math.floor(b / 8);
+  const mover = turn === "b" ? "P" : turn === "w" ? "p" : null;
+  if (!mover) return null;
+
+  // 白兵：rank 2(行6) → rank 4(行4)，被跳过的是行5（rank 3）
+  // 黑兵：rank 7(行1) → rank 5(行3)，被跳过的是行2（rank 6）
+  const [, fromRow, toRow, skippedRow] =
+    mover === "P" ? [1, 6, 4, 5] : [1, 1, 3, 2];
+
+  const from = [a, b].find((i) => Math.floor(i / 8) === fromRow && i % 8 === fileA);
+  const to = [a, b].find((i) => Math.floor(i / 8) === toRow && i % 8 === fileA);
+  if (from === undefined || to === undefined) return null;
+  if (cells[to] !== mover) return null;
+  if (cells[from] !== "" && cells[from] !== mover) return null;
+
+  return `${FILES[fileA]}${8 - skippedRow}`;
+}
