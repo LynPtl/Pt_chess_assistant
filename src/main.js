@@ -459,6 +459,7 @@ function loadFen({ placement, turn, castling }) {
     edited: false,
     activePiece: null,
     history: [],
+    analysis: { running: false, lines: [] },
   };
   render();
 }

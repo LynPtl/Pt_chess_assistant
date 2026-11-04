@@ -136,6 +136,8 @@ if (sample === "ok") {
   check("静态版仍然可以编辑棋盘", (await ev('document.querySelector(".placement").textContent')) !== before);
 }
 
+// 浏览器内引擎暂未接入（见 README 已知限制）：稳定性问题解决后再把这两条加回来。
+
 const apiHits = requests.filter((p) => /healthz|handoff|^\/open$|^\/shutdown$|fixtures\/expected/.test(p));
 check("整个流程没有请求任何本地接口", apiHits.length === 0, apiHits.join(", "));
 check("页面没有未捕获异常", pageErrors.length === 0, pageErrors[0]?.split("\n")[0]);

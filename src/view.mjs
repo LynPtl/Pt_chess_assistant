@@ -7,6 +7,7 @@
  */
 
 import { castlingOptions, describeChoice } from "./castling.mjs";
+import { formatScore, pvToSan } from "./engine.mjs";
 
 export function escapeHtml(value) {
   return String(value).replace(
@@ -140,4 +141,38 @@ export function dropzoneHtml({ busy }) {
       <div class="status">${busy ? "正在识别…" : ""}</div>
       <input id="file" type="file" accept="image/*" hidden />
     </section>`;
+}
+
+/** 静态版的引擎面板。评分与主变直接列出来；不做棋盘箭头，保持这一版够小。 */
+export function analysisPanel({ analysis, fen }) {
+  const { running = false, lines = [], error = null } = analysis ?? {};
+  const head = `<div class="engine-head">
+      <button type="button" class="primary" data-action="${running ? "stop" : "analyse"}" ${
+        fen ? "" : "disabled"
+      }>${running ? "停止" : "分析"}</button>
+      <span class="engine-note">
+        Stockfish 19 <b>lite</b> · 浏览器内运行 · 无 NNUE，<b>弱于本地 Stockfish</b>
+      </span>
+    </div>`;
+
+  if (error) {
+    return `<section class="engine-panel" id="engine-panel">${head}<p class="banner banner-block" role="alert">${escapeHtml(error)}</p></section>`;
+  }
+  if (!lines.length) {
+    const hint = running ? "正在分析…" : "点「分析」在本机浏览器里跑一局引擎（首次会加载约 1.8MB 的 wasm）";
+    return `<section class="engine-panel" id="engine-panel">${head}<p class="hint">${hint}</p></section>`;
+  }
+
+  const rows = lines
+    .map((line) => {
+      const san = fen ? pvToSan(fen, line.pv, 6) : line.pv.slice(0, 6);
+      return `<li>
+        <span class="engine-score">${formatScore(line)}</span>
+        <span class="engine-pv">${escapeHtml(san.join(" "))}</span>
+        <span class="engine-depth">深度 ${line.depth}</span>
+      </li>`;
+    })
+    .join("");
+
+  return `<section class="engine-panel" id="engine-panel">${head}<ol class="engine-lines">${rows}</ol></section>`;
 }

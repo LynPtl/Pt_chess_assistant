@@ -35,3 +35,10 @@ const modelFrom = join(fenshotPkg, "model", "chess-tiles-v2.onnx");
 if (!existsSync(modelFrom)) throw new Error(`缺少 fenshot 模型: ${modelFrom}`);
 copyFileSync(modelFrom, join(root, "src", "model", "chess-tiles-v2.onnx"));
 console.log(`[sync-assets] tile classifier ← ${modelFrom}`);
+
+// 浏览器版 Stockfish 暂未接入（见 README「已知限制」）。要重新打开时：
+//   npm i stockfish@19
+// 然后把这个块恢复——把 bin/stockfish-19-lite-single.{js,wasm} 复制到 public/engine/：
+// 必须保留原始文件名，因为引擎的 .js 会按自己的名字去找 .wasm，
+// 变成 Vite 的哈希名就找不到了。完整 NNUE 版 94.6MB，超过 Cloudflare 单文件限制，
+// 所以只能用 lite-single（1.8MB，无 NNUE）。
