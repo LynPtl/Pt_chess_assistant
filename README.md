@@ -182,6 +182,37 @@ git clone https://github.com/CSSLab/maia3.git
 
 ---
 
+## 部署成纯静态版（Cloudflare Pages 之类）
+
+同一份代码，一个构建开关就是两种形态。静态版**没有后端**：
+
+- 识别、摆棋、编辑、拖动、撤销 —— 全在浏览器里，照旧
+- 顶部那条「已连上 / 检测 / 停止服务」整条不渲染
+- 结果页只剩 `复制 FEN` / `在 lichess 分析` / `再试一张`
+
+```bash
+npm run build:static       # 产物在 dist/；内部会设 VITE_STATIC=1，不用额外环境变量
+npx serve dist             # 或者 python -m http.server -d dist
+```
+
+**Cloudflare Pages 设置**：Build command `npm run build:static`，Output directory `dist`。
+不需要环境变量，也**不需要为它开分支** —— 两种形态共享同一份代码，避免以后修 bug 要改两遍。
+
+静态版上线前值得跑一遍：
+
+```bash
+node scripts/verify-static.mjs http://127.0.0.1:3000/
+```
+
+它会验证：没有本地状态条、识别可用、没有「送入」按钮、给了 lichess 入口，
+以及**整个流程零请求打到 `/healthz`、`/handoff` 之类**（也就是真的不需要后端）。
+
+两点差异要知道：
+
+- `?fixtures=1` / `?selftest=` 在静态版里用不了 —— 它们读的是 Node 服务的 `/fixtures/*`
+- 静态版没有引擎（Maia / Stockfish 都是本地进程），所以"分析"这一步交给 lichess 链接；
+  想留在页面里分析，下一步可以塞一个浏览器版 Stockfish（WASM）
+
 ## 开发与测试
 
 ```bash
@@ -189,6 +220,8 @@ npm test                 # 177 条单元测试（node:test），1 秒
 npm run build            # 生产构建
 npm run verify           # 真实浏览器：盖章/擦除/拖拽/撤销/Ctrl+Z/提示条（需先 npm start）
 npm run verify:fen       # 真实浏览器：粘贴 FEN 摆棋
+npm run build:static     # 静态版构建（无后端）
+npm run verify:static    # 静态版验收（需先把 dist/ 用静态服务器托管）
 ```
 
 浏览器回归用的是 **Chrome DevTools 协议**（不是 Playwright），原因有两个：Playwright 会被依赖约束排除；
@@ -208,6 +241,7 @@ src/
   board -> 数据：  fen.mjs（FEN 组装） castling.mjs（易位权） highlight.mjs（高亮推断）
                    import-fen.mjs（FEN 解析） guards.mjs（拒绝策略） edit.mjs（改格）
   service.mjs      与本地服务的所有请求
+  mode.mjs         本地版 / 静态版的开关
   devhooks.mjs     ?fixtures / ?selftest 开发钩子
   sampling.mjs     像素采样（canvas）
   config.mjs / config 加载       spawn-helpers.mjs / 进程与端口错误
@@ -217,6 +251,8 @@ scripts/
   browser-check.mjs         无头 Chrome 的通用求值器
   verify-interactions.mjs   交互回归
   verify-fen-paste.mjs      FEN 粘贴回归
+  verify-static.mjs         静态版回归（确认真的不需要后端）
+  build-static.mjs          静态版构建（设 VITE_STATIC=1 后调 vite）
 ```
 
 ---

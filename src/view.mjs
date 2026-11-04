@@ -17,7 +17,9 @@ export function escapeHtml(value) {
 
 /** Whether the handoff is wired, why not when it isn't, and the two things a
  *  user can do about it without leaving the page. */
-export function statusStrip(health) {
+export function statusStrip(health, { staticMode = false } = {}) {
+  // 静态托管没有本地服务，谈不上"连没连上"
+  if (staticMode) return "";
   const stop = `<button type="button" class="danger" data-action="shutdown">停止服务</button>`;
   if (health.configured) {
     return `<div class="service-status ok">
@@ -91,7 +93,20 @@ export function toggleButton(label, active, action) {
 }
 
 /** 底部按钮区：撤销、送入、复制 FEN、再来一张，以及"还不能送入"的说明。 */
-export function actionsRow({ configured, blocked, reason = "", closeFirst = false }) {
+export function actionsRow({ configured, blocked, reason = "", closeFirst = false, staticMode = false, fen = null }) {
+  if (staticMode) {
+    // 没有本地 GUI：能做的只有"把 FEN 拿走"，所以顺便给一个 lichess 的入口。
+    const lichess = fen
+      ? `<a class="btn" href="https://lichess.org/analysis/standard/${fen.replaceAll(" ", "_")}"
+            target="_blank" rel="noreferrer">在 lichess 分析</a>`
+      : "";
+    return `<div class="actions">
+      <button type="button" data-action="copy">复制 FEN</button>
+      ${lichess}
+      <button type="button" data-action="reset">再试一张</button>
+    </div>`;
+  }
+
   const send = configured
     ? `<button type="button" class="primary" data-action="send" ${blocked ? "disabled" : ""}>送入 En Croissant</button>`
     : "";

@@ -8,6 +8,7 @@ import { parseFenInput } from "./import-fen.mjs";
 import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
 import { createService } from "./service.mjs";
 import { installDevHooks } from "./devhooks.mjs";
+import { staticMode } from "./mode.mjs";
 import { actionsRow, castlingControls, dropzoneHtml, escapeHtml, noticeBlock, paletteHtml, statusStrip, toggleButton } from "./view.mjs";
 import { installBoardEditing } from "./board-editing.mjs";
 import { inferFromHighlights } from "./sampling.mjs";
@@ -149,7 +150,7 @@ function verdictFor(fen) {
 function renderIdleOrScanning() {
   const busy = state.kind === "scanning";
   app.innerHTML = `
-    ${statusStrip(health)}
+    ${staticMode ? "" : statusStrip(health)}
     ${noticeBlock(notice)}
     ${dropzoneHtml({ busy })}
   `;
@@ -186,7 +187,7 @@ function renderResult() {
   const noticeHtml = noticeBlock(notice);
 
   app.innerHTML = `
-    ${statusStrip(health)}
+    ${staticMode ? "" : statusStrip(health)}
     <section class="result ${state.imageUrl ? "" : "no-shot"}">
       ${
         state.imageUrl
@@ -240,6 +241,8 @@ function renderResult() {
       </div>
 
       ${actionsRow({
+        staticMode,
+        fen,
         configured: health.configured,
         blocked: verdict.blocked,
         reason: health.reason ?? "",
@@ -267,9 +270,11 @@ function renderResult() {
   });
 
   // 复选框用的是 change 而不是 click：bind() 只挂 click
-  app.querySelector('[data-action="close-first"]')?.addEventListener("change", (event) => {
-    service.setCloseFirst(event.currentTarget.checked);
-  });
+  if (!staticMode) {
+    app.querySelector('[data-action="close-first"]')?.addEventListener("change", (event) => {
+      service.setCloseFirst(event.currentTarget.checked);
+    });
+  }
 }
 
 function editSquare(screenIndex, piece) {
@@ -486,7 +491,13 @@ try {
   document.body.dataset.error = String(err);
 }
 
-await refreshHealth();
+if (staticMode) {
+  // 静态托管没有本地服务，连探测都不做
+  health = { configured: false, reason: "静态版：没有本地服务" };
+  render();
+} else {
+  await refreshHealth();
+}
 
 async function blankPng() {
   const canvas = document.createElement("canvas");
@@ -523,7 +534,8 @@ async function upscaleToWidth(blob, targetWidth) {
 render();
 
 // Dev hooks live in their own module; installed only when the query string asks.
-window.__done = installDevHooks({
+// 静态版没有 /fixtures/* 路由，装了也只会 404。
+window.__done = staticMode ? true : installDevHooks({
   params: new URLSearchParams(location.search),
   app,
   scanImage,

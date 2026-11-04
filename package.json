@@ -12,7 +12,10 @@
     "prebuild": "node scripts/sync-assets.mjs",
     "verify": "node scripts/verify-interactions.mjs",
     "verify:fen": "node scripts/verify-fen-paste.mjs",
-    "setup": "powershell -ExecutionPolicy Bypass -File scripts/setup.ps1"
+    "setup": "powershell -ExecutionPolicy Bypass -File scripts/setup.ps1",
+    "build:static": "node scripts/build-static.mjs",
+    "prebuild:static": "node scripts/sync-assets.mjs",
+    "verify:static": "node scripts/verify-static.mjs"
   },
   "keywords": [
     "chess",

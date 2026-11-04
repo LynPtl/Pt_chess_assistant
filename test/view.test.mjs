@@ -112,3 +112,31 @@ test("dropzoneHtml：识别中不允许再点开文件选择", async () => {
   assert.match(busy, /正在识别/);
   assert.match(busy, /class="dropzone busy"/);
 });
+
+test("actionsRow：静态模式只留复制 FEN 和 lichess 分析", async () => {
+  const { actionsRow } = await import("../src/view.mjs");
+  const html = actionsRow({
+    staticMode: true,
+    canCopy: true,
+    fen: "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1",
+  });
+  assert.doesNotMatch(html, /data-action="send"/);
+  assert.doesNotMatch(html, /close-first/);
+  assert.doesNotMatch(html, /还不能送入/);
+  assert.match(html, /data-action="copy"/);
+  assert.match(html, /lichess\.org\/analysis\/standard\//);
+  // lichess 要的格式：摆位保留 /，字段之间用下划线
+  assert.match(html, /analysis\/standard\/r1bqk1nr\/pppp1ppp\/2n5\/[^"]*w_KQkq/);
+});
+
+test("actionsRow：静态模式下没有局面时不给 lichess 链接", async () => {
+  const { actionsRow } = await import("../src/view.mjs");
+  const html = actionsRow({ staticMode: true, fen: null });
+  assert.doesNotMatch(html, /lichess\.org/);
+  assert.match(html, /再试一张/);
+});
+
+test("statusStrip：静态模式不渲染本地服务状态", async () => {
+  const { statusStrip } = await import("../src/view.mjs");
+  assert.equal(statusStrip({ configured: true, reason: "" }, { staticMode: true }), "");
+});
