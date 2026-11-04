@@ -296,6 +296,10 @@ node scripts/browser-check.mjs "http://127.0.0.1:8787/?fixtures=1"
 测试图来自 [scoriiu/fenshot](https://github.com/scoriiu/fenshot) 的
 `packages/fenshot/tests/fixtures/`（MIT）。
 
+**许可**：本仓库代码为 MIT（见 `LICENSE`），但 `src/pieces/cburnett/*.svg`
+这一组棋子素材是 **GPLv2+**，不受 MIT 覆盖 —— 要再分发（尤其公开仓库）请一并遵守。
+两个依赖也都是宽松许可（fenshot 为 MIT）。
+
 识别引擎是 [@scoriiu/fenshot](https://github.com/scoriiu/fenshot)（MIT）；
 棋盘棋子是本仓库 `src/pieces/cburnett/` 里的 **cburnett** 棋子集，
 作者 Colin M.L. Burnett，许可 **GPLv2+**，取自
