@@ -572,3 +572,66 @@ table.fixtures tr.pass td:nth-child(3) {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* 「最近识别过的局面」 */
+.recent {
+  margin-top: 18px;
+}
+
+.recent h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.recent ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.recent-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recent-row:hover {
+  border-color: var(--accent);
+}
+
+.recent-kind {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.recent-fen {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+}
+
+.recent-time {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+}

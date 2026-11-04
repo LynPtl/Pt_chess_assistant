@@ -4,6 +4,8 @@
 
 识别、拼 FEN、写 PGN、启动分析器全在本机完成，**图片不出浏览器、不上传任何服务器**。
 
+**English**: [README.en.md](README.en.md)
+
 **在线试（静态版，无需安装）**：<https://pt-chess-assistant.ptlantern.workers.dev>
 —— 只能"贴图/贴 FEN → 摆好 → 复制 FEN 或去 lichess 分析"，没有本地引擎（那是设计如此）。
 
@@ -24,10 +26,11 @@
 | | |
 |---|---|
 | **粘贴截图** | `Ctrl`+`V` / 拖入 / 选文件，浏览器里用 wasm 跑 ONNX 模型识别 |
-| **粘贴 FEN** | 直接贴一段 FEN 也行（4 段简写也认），走子方和易位权照抄不推断 |
+| **粘贴 FEN / PGN** | 直接贴一段 FEN（4 段简写也认）或一整段 PGN（取最终局面）也行，走子方和易位权照抄不推断 |
 | **可编辑棋盘** | 调色板盖章、右键擦除、**拖动换位**、`Ctrl`+`Z` 撤销（最多 30 步） |
 | **推断** | 从"上一步高亮"推断走子方、易位权是否失效、吃过路兵目标 |
 | **诚实拒绝** | 低置信度 / 王数不对 / FEN 不合法 → 显式警告，绝不静默把错局面送进引擎 |
+| **最近局面** | 识别过的局面记在本地（localStorage），点一下重新摆出来 |
 | **交接** | 写 `[SetUp][FEN]` 临时 PGN，命令行交给 En Croissant |
 
 ## 它不做什么
@@ -195,8 +198,8 @@ git clone https://github.com/CSSLab/maia3.git
 - 首页多一个「用这张示例图试一下」，谁都能点开就看效果
 
 ```bash
-npm run build:static     # 产物在 dist/；内部设 VITE_STATIC=1，不用额外环境变量
-npx serve dist           # 本地看效果
+npm run build:static     # 产物在 dist-static/；内部设 VITE_STATIC=1，不用额外环境变量
+npx serve dist-static    # 本地看效果
 ```
 
 **部署**（Cloudflare 已经把 Pages 并入 Workers，静态站点用 assets 声明）：
@@ -206,7 +209,9 @@ npx wrangler login       # 一次即可
 npm run deploy:cf        # = build:static + wrangler deploy
 ```
 
-`wrangler.jsonc` 里已经写好了 `assets.directory = ./dist` 与站点名 `pt-chess-assistant`。
+`wrangler.jsonc` 里已经写好了 `assets.directory = ./dist-static` 与站点名 `pt-chess-assistant`。
+**两个构建产物目录是分开的**（`dist/` 本地版、`dist-static/` 静态版），所以不会出现
+"本地回归跑在静态产物上"或"把本地版推上线"这类乌龙。
 首次部署会给出形如 `https://pt-chess-assistant.<你的子域>.workers.dev` 的地址。
 
 > 以前那种 `wrangler pages deploy` 现在会被 wrangler 转交到 Workers 流程然后报
@@ -242,8 +247,7 @@ npm run verify:static    # 静态版验收（dist/ 用任意静态服务器托�
 
 `?fixtures=1` 可以在页面里跑 10 张真实截图的识别回归；`?selftest=<文件名>` 只跑一张。
 
-⚠️ 本地版和静态版都写同一个 `dist/`，所以**本地回归必须在 `npm run build` 之后跑**：
-`dist/` 里留着静态构建时，`?selftest=` 那套开发钩子根本不存在，回归会"找不到棋盘"。
+两种构建产物分别是 `dist/`（本地版）和 `dist-static/`（静态版），互不覆盖。
 
 ### 代码结构
 

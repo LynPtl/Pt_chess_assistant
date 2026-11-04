@@ -37,14 +37,16 @@ test("castlingControls：推断落在「有」里面，并写出字母", () => {
   const html = castlingControls({ placement: ITALIAN, castling: { w: "auto", b: "auto" }, highlights: [] });
   assert.equal((html.match(/data-action="castle-/g) ?? []).length, 4);
   assert.match(html, /有<span class="inferred-badge"[^>]*>推断<\/span>/);
-  assert.match(html, /白方易位/);
-  assert.match(html, /黑方易位/);
+  assert.match(html, /白方易位权/);
+  assert.match(html, /黑方易位权/);
+  // 按钮说的是"这个权利还在不在"，不是"易位"
+  assert.match(html, /还有<span class="inferred-badge"[^>]*>推断<\/span>/);
 });
 
 test("castlingControls：王不在原位时「有」被禁用，角标落到「无」", () => {
   const html = castlingControls({ placement: KINGS_OFF, castling: { w: "auto", b: "auto" }, highlights: [] });
   assert.ok((html.match(/disabled/g) ?? []).length >= 2);
-  assert.match(html, /无<span class="inferred-badge"[^>]*>推断<\/span>/);
+  assert.match(html, /已失去<span class="inferred-badge"[^>]*>推断<\/span>/);
   assert.match(html, /王不在 e1/);
 });
 
@@ -157,4 +159,34 @@ test("paletteHtml：编辑器里只有「撤销」，不再有独立的「旋转
   const html = paletteHtml({ activePiece: null, pieceUrls: urls, palette: "KQRBNPkqrbnp".split(""), canUndo: true });
   assert.match(html, /data-action="undo"/);
   assert.doesNotMatch(html, /data-action="rotate"/, "翻转已经能覆盖这个需求，不再重复提供");
+});
+
+test("castlingControls：文案说明的是「易位权还在不在」", async () => {
+  const { castlingControls } = await import("../src/view.mjs");
+  const html = castlingControls({ placement: ITALIAN, castling: { w: "auto", b: "auto" }, highlights: [] });
+  assert.match(html, /白方易位权/);
+  assert.match(html, />还有/);
+  assert.match(html, />已失去/);
+  assert.doesNotMatch(html, />有<|>无</, "不再用有/无这种含糊说法");
+});
+
+test("recentList：列出最近局面，每条可点、带时间和来源", async () => {
+  const { recentList } = await import("../src/view.mjs");
+  const fen = "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1";
+  const html = recentList({
+    items: [
+      { fen, ts: "2026-11-04T05:00:00.000Z", source: "screenshot" },
+      { fen: "8/8/8/8/8/8/8/K6k w - - 0 1", ts: "2026-11-04T04:00:00.000Z", source: "fen" },
+    ],
+  });
+  assert.match(html, /最近/);
+  assert.equal((html.match(/data-action="recent"/g) ?? []).length, 2);
+  assert.match(html, /data-index="0"/);
+  assert.match(html, /截图/);
+  assert.match(html, /FEN/, "要标出这条是从 FEN 导入的");
+});
+
+test("recentList：没有历史时整块不渲染", async () => {
+  const { recentList } = await import("../src/view.mjs");
+  assert.equal(recentList({ items: [] }), "");
 });

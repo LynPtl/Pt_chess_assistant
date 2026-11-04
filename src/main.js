@@ -5,14 +5,16 @@ import { composeFen, flipPlacement, isPlausible } from "./fen.mjs";
 import { resolveRights } from "./castling.mjs";
 import { inferEnPassant, moveSquare, pushHistory, stampSquare } from "./edit.mjs";
 import { parseFenInput } from "./import-fen.mjs";
+import { parsePgnInput } from "./import-pgn.mjs";
 import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
 import { createService } from "./service.mjs";
 import { installDevHooks } from "./devhooks.mjs";
 import { staticMode } from "./mode.mjs";
 import { rotateHighlights } from "./highlight.mjs";
-import { actionsRow, castlingControls, dropzoneHtml, escapeHtml, noticeBlock, paletteHtml, statusStrip, toggleButton } from "./view.mjs";
+import { actionsRow, castlingControls, dropzoneHtml, escapeHtml, noticeBlock, paletteHtml, recentList, statusStrip, toggleButton } from "./view.mjs";
 import { installBoardEditing } from "./board-editing.mjs";
 import { highlightSquares } from "./sampling.mjs";
+import { loadRecent, pushRecent } from "./history.mjs";
 import { inferTurn } from "./highlight.mjs";
 import { evaluatePosition } from "./guards.mjs";
 import { releaseResultUrl } from "./urls.mjs";
@@ -122,6 +124,7 @@ export async function scanImage(blob) {
       activePiece: null,
       history: [],
     };
+    pushRecent(undefined, { fen: currentFen(), source: "screenshot" });
   } catch (err) {
     state = { kind: "noboard", message: `识别出错：${err.message}` };
   }
@@ -175,6 +178,7 @@ function renderIdleOrScanning() {
     ${staticMode ? "" : statusStrip(health)}
     ${noticeBlock(notice)}
     ${dropzoneHtml({ busy })}
+    ${recentList({ items: loadRecent() })}
   `;
   // 只有点在"空白处"才打开文件选择器：框里还有示例图按钮和可复制的 FEN 文本，
   // 点它们不该顺带弹出文件对话框（事件会冒泡到 .dropzone）。
@@ -193,6 +197,16 @@ function renderIdleOrScanning() {
     shutdown,
     demo: () => void scanDemo(),
   });
+
+  // 「最近识别过的局面」：点一条就把它重新摆出来（走子方/易位权直接从存下的 FEN 读）
+  const recent = loadRecent();
+  for (const row of app.querySelectorAll('[data-action="recent"]')) {
+    row.addEventListener("click", () => {
+      const item = recent[Number(row.dataset.index)];
+      const parsed = item ? parseFenInput(item.fen) : null;
+      if (parsed) loadFen({ ...parsed, source: item.source });
+    });
+  }
 }
 
 function renderNoBoard() {
@@ -232,9 +246,13 @@ function renderResult() {
       <figure class="board-figure">
         ${renderBoardSvg(boardPlacement, false, PIECE_URLS)}
         <figcaption>
-          ${state.source === "fen" ? "从 FEN 导入（未经识别，无需核对棋子）" : `识别结果 · 平均置信度 ${confidence}%`}${
-            state.edited ? " · 已手动修正" : ""
-          }
+          ${
+            state.source === "fen"
+              ? "从 FEN 导入（未经识别，无需核对棋子）"
+              : state.source === "pgn"
+                ? `从 PGN 导入 · 最终局面（${state.moveCount ?? 0} 着，未经识别）`
+                : `识别结果 · 平均置信度 ${confidence}%`
+          }${state.edited ? " · 已手动修正" : ""}
           <br /><span class="edit-hint">点格子盖章 · 拖动棋子换位 · 右键擦掉</span>
         </figcaption>
         ${paletteHtml({
@@ -459,21 +477,33 @@ window.addEventListener("paste", (event) => {
     void scanImage(file);
     return;
   }
-  // 没有图片就看看是不是一段 FEN —— 这条路径不用识别，走子方和易位权都是确定的。
+  // 没有图片就看看是不是一段 FEN 或 PGN —— 这条路径不用识别，
+  // 走子方和易位权都由文本本身给出，不需要推断。
   const text = event.clipboardData?.getData("text") ?? "";
   const imported = parseFenInput(text);
-  if (!imported) return;
-  event.preventDefault();
-  loadFen(imported);
+  if (imported) {
+    event.preventDefault();
+    loadFen(imported);
+    return;
+  }
+  const pgn = parsePgnInput(text);
+  if (pgn) {
+    event.preventDefault();
+    loadFen({ ...pgn, source: "pgn" });
+  }
 });
 
 /** 直接把一段 FEN 摆上棋盘：不经过识别，所以没有置信度，也不该显示"识别结果"。 */
-function loadFen({ placement, turn, castling }) {
+function loadFen({ placement, turn, castling, source = "fen", moveCount = 0 }) {
   releaseResultUrl(state);
-  notice = { tone: "ok", text: "已从剪贴板导入 FEN" };
+  notice = {
+    tone: "ok",
+    text: source === "pgn" ? `已从剪贴板载入 PGN（${moveCount} 着，显示最终局面）` : "已从剪贴板导入 FEN",
+  };
   state = {
     kind: "result",
-    source: "fen",
+    source,
+    moveCount,
     scan: {
       placement,
       reliable: true,
@@ -496,6 +526,7 @@ function loadFen({ placement, turn, castling }) {
     history: [],
     analysis: { running: false, lines: [] },
   };
+  pushRecent(undefined, { fen: currentFen(), source });
   render();
 }
 

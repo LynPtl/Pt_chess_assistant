@@ -3,6 +3,7 @@
 .tmp/
 .wrangler/
 config.json
+dist-static/
 dist/
 logs/
 node_modules/

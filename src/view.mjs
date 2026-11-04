@@ -49,19 +49,19 @@ export function castlingControls({ placement, castling, highlights }) {
       const options = castlingOptions(placement, side, highlights ?? []);
       const choice = castling?.[side] ?? "auto";
       const view = describeChoice(options, choice);
-      const label = side === "w" ? "白方" : "黑方";
+      const label = side === "w" ? "白方易位权" : "黑方易位权";
       const badge = (where) =>
         view.badge === where
           ? `<span class="inferred-badge" title="${escapeHtml(view.reason)}">推断</span>`
           : "";
       const onDisabled = view.canHave ? "" : `disabled title="${escapeHtml(view.reason)}"`;
       return `<div class="control">
-        <span class="control-label">${label}易位</span>
+        <span class="control-label">${label}</span>
         <div class="toggle">
           <button type="button" class="${view.onSelected ? (view.badge === "on" ? "auto-on" : "on") : ""}"
-            data-action="castle-${side}-on" ${onDisabled}>有${badge("on")}</button>
+            data-action="castle-${side}-on" ${onDisabled}>还有${badge("on")}</button>
           <button type="button" class="${view.offSelected ? (view.badge === "off" ? "auto-on" : "on") : ""}"
-            data-action="castle-${side}-off">无${badge("off")}</button>
+            data-action="castle-${side}-off">已失去${badge("off")}</button>
         </div>
       </div>`;
     })
@@ -151,5 +151,30 @@ export function dropzoneHtml({ busy }) {
       </p>
       <div class="status">${busy ? "正在识别…" : ""}</div>
       <input id="file" type="file" accept="image/*" hidden />
+    </section>`;
+}
+
+/** 「最近识别过的局面」。点一条就能重新摆出来 —— 不用再找那张截图。 */
+export function recentList({ items = [] } = {}) {
+  if (!items.length) return "";
+  const rows = items
+    .map((item, index) => {
+      const when = new Date(item.ts);
+      const time = Number.isNaN(when.getTime())
+        ? ""
+        : `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+      const kind = item.source === "fen" ? "FEN" : item.source === "pgn" ? "PGN" : "截图";
+      return `<li>
+        <button type="button" class="recent-row" data-action="recent" data-index="${index}" title="${escapeHtml(item.fen)}">
+          <span class="recent-kind">${kind}</span>
+          <code class="recent-fen">${escapeHtml(item.fen)}</code>
+          <span class="recent-time">${time}</span>
+        </button>
+      </li>`;
+    })
+    .join("");
+  return `<section class="recent">
+      <h2>最近识别过的局面</h2>
+      <ul>${rows}</ul>
     </section>`;
 }
