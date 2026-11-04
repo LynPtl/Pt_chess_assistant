@@ -111,12 +111,13 @@ export async function scanImage(blob) {
       imageUrl: URL.createObjectURL(blob),
       // Pixels cannot carry side to move or history, so these are the user's
       // to confirm: white to move, castling inferred from home squares.
-      // `flipped` 只是显示方向，不参与 FEN；`resolveOrientation` 已经给出
+      // 显示方向跟截图一致（黑方视角的截图就黑在下），但它**不参与 FEN**；
+      // `resolveOrientation` 已经给出
       // corrected placement; flipping it is the override for a wrong call.
       turn: inferred?.turn ?? "w",
       // 每侧三态：auto = 按推断，on/off = 用户明确指定
       castling: { w: "auto", b: "auto" },
-      flipped: false,
+      flipped: orientation === "black",
       edited: false,
       activePiece: null,
       history: [],
@@ -301,7 +302,6 @@ function renderResult() {
     "castle-b-on": () => setCastling("b", "on"),
     "castle-b-off": () => setCastling("b", "off"),
     flip: () => setOption({ flipped: !state.flipped }),
-    rotate: rotatePosition,
   });
 
   // 复选框用的是 change 而不是 click：bind() 只挂 click
@@ -408,19 +408,6 @@ async function copyFen() {
 
 /** 撤销一步编辑（盖章 / 擦除 / 拖动都算）。历史只在本次识别内有效——
  *  重新贴一张图就是新局面，旧的撤销没有意义。 */
-/** 识别出的朝向反了才用这个：把摆位整体转 180°。这是**改局面**，所以会重算
- *  易位权，也能撤销 —— 和「翻转视图」是两件事。 */
-function rotatePosition() {
-  notice = null;
-  state = {
-    ...state,
-    placement: flipPlacement(state.placement),
-    edited: true,
-    history: pushHistory(state.history, state.placement),
-  };
-  render();
-}
-
 function undo() {
   const history = state.history ?? [];
   if (history.length === 0) return;

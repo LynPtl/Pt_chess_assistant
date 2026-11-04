@@ -194,14 +194,10 @@ check("翻转视图不改易位权按钮", (await castleState()) === castlesBefo
 await ev(`document.querySelector('[data-action="flip"]').click()`);
 await sleep(200);
 
-// 「旋转局面」是改局面本身，会改 FEN，也能撤销
-await ev(`document.querySelector('[data-action="rotate"]').click()`);
-await sleep(300);
-const afterRotate = await fen();
-check("旋转局面会改 FEN", afterRotate !== beforeFlip, afterRotate);
-await ev(`document.querySelector('[data-action="undo"]').click()`);
-await sleep(300);
-check("旋转局面可以撤销", (await fen()) === beforeFlip, await fen());
+check(
+  "编辑器里没有重复的「旋转局面」按钮",
+  (await ev(`document.querySelectorAll('[data-action="rotate"]').length`)) === 0,
+);
 
 // 提示条：送入 / 复制 FEN 之后必须能看见反馈。这条曾经因为
 // noticeBlock() 少传参数而静默失效——按钮点了，页面毫无反应。
