@@ -5,7 +5,9 @@ import { composeFen, flipPlacement, isPlausible } from "./fen.mjs";
 import { castlingOptions, describeChoice, resolveRights } from "./castling.mjs";
 import { moveSquare, stampSquare } from "./edit.mjs";
 import { PALETTE, PIECE_URLS } from "./piece-urls.mjs";
-import { findHighlights, inferTurn, samplePoints } from "./highlight.mjs";
+import { createService } from "./service.mjs";
+import { installBoardEditing } from "./board-editing.mjs";
+import { inferFromHighlights } from "./sampling.mjs";
 import { evaluatePosition } from "./guards.mjs";
 import { judgeFixture } from "./fixtures.mjs";
 import { releaseResultUrl } from "./urls.mjs";
@@ -24,6 +26,7 @@ export const recognizer = createRecognizer({
 });
 
 const app = document.getElementById("app");
+const service = createService();
 
 /** { kind: "idle" } | { kind: "scanning" } | { kind: "noboard", message? }
  *  | { kind: "result", scan, placement, orientation, imageUrl,
@@ -36,41 +39,14 @@ export let state = { kind: "idle" };
 let health = { configured: false, reason: "还没连上本地服务" };
 let notice = null; // { tone: "ok" | "error", text }
 
-/** En Croissant 的单实例保护实测无效（第二次启动会留下第二个进程），而深链只认
- *  chess.com/lichess 的 URL，没法把局面交给已开着的窗口。所以给一个可选的
- *  "先关掉旧窗口"——默认关，用户勾过就一直记住。 */
-function closeFirst() {
-  try {
-    return localStorage.getItem("mychess-close-first") === "1";
-  } catch {
-    return false;
-  }
-}
-
-function setCloseFirst(value) {
-  try {
-    localStorage.setItem("mychess-close-first", value ? "1" : "0");
-  } catch {
-    /* 隐私模式下写不进去，忽略 */
-  }
-}
-
 async function refreshHealth() {
-  try {
-    health = await (await fetch("/healthz")).json();
-  } catch (err) {
-    health = { configured: false, reason: `连不上本地服务：${err.message}` };
-  }
+  health = await service.refreshHealth();
   render();
 }
 
 async function shutdown() {
   if (!window.confirm("停止本地服务？停止后这个页面就不能再识别了，要用就重新运行 start.bat。")) return;
-  try {
-    await fetch("/shutdown", { method: "POST" });
-  } catch {
-    /* 进程已经没了也算停成功 */
-  }
+  await service.shutdown().catch(() => {});
   state = { kind: "idle" };
   notice = null;
   health = { configured: false, reason: "服务已停止。重新运行 start.bat 就能再用。" };
@@ -79,8 +55,7 @@ async function shutdown() {
 
 async function openEnCroissant() {
   try {
-    const response = await fetch("/open", { method: "POST" });
-    const body = await response.json();
+    const body = await service.open();
     notice = body.ok
       ? { tone: "ok", text: "已启动 En Croissant" }
       : { tone: "error", text: body.error ?? "启动失败" };
@@ -88,60 +63,6 @@ async function openEnCroissant() {
     notice = { tone: "error", text: `启动失败：${err.message}` };
   }
   render();
-}
-
-/** fenshot downscales anything larger than this before detecting the board, so
- *  its corner coordinates live in that scaled space. */
-const MAX_DETECT_DIM = 1600;
-
-/** Average the colour around each of the 4 inset points of every square. */
-function sampleSquareColours(bitmap, corners) {
-  const scale = Math.min(1, MAX_DETECT_DIM / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  ctx.drawImage(bitmap, 0, 0);
-
-  const points = samplePoints(
-    corners.x0 / scale,
-    corners.y0 / scale,
-    (corners.x1 - corners.x0) / scale,
-    (corners.y1 - corners.y0) / scale,
-  );
-  const patch = 6;
-  return points.map((cell) => {
-    let r = 0;
-    let g = 0;
-    let b = 0;
-    let n = 0;
-    for (const [px, py] of cell) {
-      const d = ctx.getImageData(Math.round(px - patch / 2), Math.round(py - patch / 2), patch, patch).data;
-      for (let i = 0; i < d.length; i += 4) {
-        r += d[i];
-        g += d[i + 1];
-        b += d[i + 2];
-        n++;
-      }
-    }
-    return { r: r / n, g: g / n, b: b / n };
-  });
-}
-
-/** Chess sites tint the two squares of the move just played. If the tinted
- *  square that still holds a piece is white, White just moved, so it is
- *  Black's turn. Only ever a suggestion — the toggle stays user-controlled. */
-async function inferTurnFromHighlights(blob, scan, placement) {
-  try {
-    const bitmap = await createImageBitmap(blob);
-    const colours = sampleSquareColours(bitmap, scan.corners);
-    bitmap.close?.();
-    const highlights = findHighlights(colours);
-    return { inferred: inferTurn(placement, highlights), highlights };
-  } catch (err) {
-    console.debug("高亮格推断失败（不影响其它功能）", err);
-    return { inferred: null, highlights: [] };
-  }
 }
 
 export async function scanImage(blob) {
@@ -157,7 +78,7 @@ export async function scanImage(blob) {
       return;
     }
     const { placement, orientation } = resolveOrientation(scan.placement);
-    const { inferred, highlights } = await inferTurnFromHighlights(blob, scan, placement);
+    const { inferred, highlights } = await inferFromHighlights(blob, scan.corners, placement);
     state = {
       kind: "result",
       scan,
@@ -235,21 +156,15 @@ async function sendToEnCroissant() {
   if (verdict.needsConfirm && !window.confirm("识别结果有警告，仍然送入 En Croissant？")) return;
 
   try {
-    const response = await fetch("/handoff", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        closeFirst: closeFirst(),
-        fen,
-        turn: state.turn,
-        castlingMode: state.castling,
-        flipped: state.flipped,
-        meanConfidence: state.scan.meanConfidence,
-        minConfidence: state.scan.minConfidence,
-        reliable: state.scan.reliable,
-      }),
+    const body = await service.handoff({
+      fen,
+      turn: state.turn,
+      castlingMode: state.castling,
+      flipped: state.flipped,
+      meanConfidence: state.scan.meanConfidence,
+      minConfidence: state.scan.minConfidence,
+      reliable: state.scan.reliable,
     });
-    const body = await response.json();
     notice = body.ok
       ? { tone: "ok", text: "已送入 En Croissant" }
       : { tone: "error", text: body.error ?? "送入失败" };
@@ -420,7 +335,7 @@ function renderResult() {
             : ""
         }
         <label class="close-first" title="En Croissant 每次送入都会新开一个窗口；勾上就先把已开的关掉">
-          <input type="checkbox" data-action="close-first" ${closeFirst() ? "checked" : ""} />
+          <input type="checkbox" data-action="close-first" ${service.closeFirst() ? "checked" : ""} />
           先关掉旧窗口
         </label>
         <button type="button" data-action="copy">复制 FEN</button>
@@ -453,7 +368,7 @@ function renderResult() {
 
   // 复选框用的是 change 而不是 click：bind() 只挂 click
   app.querySelector('[data-action="close-first"]')?.addEventListener("change", (event) => {
-    setCloseFirst(event.currentTarget.checked);
+    service.setCloseFirst(event.currentTarget.checked);
   });
 }
 
@@ -491,125 +406,32 @@ function editSquare(screenIndex, piece) {
 }
 
 function bindBoardEditing() {
-  const board = app.querySelector("svg.board");
-
-  for (const square of app.querySelectorAll("[data-square]")) {
-    const index = Number(square.dataset.square);
-    square.addEventListener("click", () => {
-      if (suppressClick()) return;
-      if (state.activePiece === null) {
-        notice = { tone: "error", text: "先在下面的调色板里选一个棋子；或者直接把棋子拖到目标格子。" };
-        render();
-        return;
-      }
-      editSquare(index, state.activePiece);
-    });
-    square.addEventListener("contextmenu", (event) => {
-      event.preventDefault();
-      editSquare(index, "");
-    });
-    square.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0 || state.activePiece !== null) return;
-      startDrag(event, index);
-    });
-  }
-
-  for (const button of app.querySelectorAll("[data-piece]")) {
-    button.addEventListener("click", () => {
-      const piece = button.dataset.piece;
-      state = { ...state, activePiece: state.activePiece === piece ? null : piece };
-      notice = null;
+  installBoardEditing({
+    app,
+    getState: () => state,
+    update: (patch) => {
+      state = { ...state, ...patch };
       render();
-    });
-  }
-
-  if (board) {
-    board.addEventListener("pointermove", moveDrag);
-    board.addEventListener("pointerup", endDrag);
-    board.addEventListener("pointercancel", cancelDrag);
-  }
+    },
+    edit: ({ screenIndex, piece, to }) => {
+      if (to === undefined) editSquare(screenIndex, piece);
+      else movePieceTo(screenIndex, to);
+    },
+    notify: (next) => {
+      notice = next;
+      render();
+    },
+    render,
+  });
 }
 
-/** Pointer position → board square index, using the SVG's own 8×8 viewBox. */
-function squareAtPoint(board, clientX, clientY) {
-  const rect = board.getBoundingClientRect();
-  const col = Math.floor(((clientX - rect.left) / rect.width) * 8);
-  const row = Math.floor(((clientY - rect.top) / rect.height) * 8);
-  if (col < 0 || col > 7 || row < 0 || row > 7) return null;
-  return row * 8 + col;
-}
-
-/** 拖拽换位：抓起一个子拖到另一格就是"移动"，这是摆棋最基本的动作。
- *  选着调色板棋子时不触发拖拽——那时点击表示"盖章"。 */
-let drag = null;
-let clickSuppressedUntil = 0;
-
-function suppressClick() {
-  return Date.now() < clickSuppressedUntil;
-}
-
-function startDrag(event, index) {
-  const board = app.querySelector("svg.board");
-  const pieceImage = board?.querySelector(`[data-at="${index}"]`);
-  if (!board || !pieceImage) return;
-  event.preventDefault();
-  const ghost = pieceImage.cloneNode(true);
-  ghost.setAttribute("class", "drag-ghost");
-  ghost.removeAttribute("data-at");
-  board.append(ghost);
-  pieceImage.classList.add("drag-source");
-  board.setPointerCapture?.(event.pointerId);
-  drag = { from: index, ghost, moved: false, board };
-  positionGhost(event);
-}
-
-function positionGhost(event) {
-  if (!drag) return;
-  const rect = drag.board.getBoundingClientRect();
-  const x = ((event.clientX - rect.left) / rect.width) * 8 - 0.45;
-  const y = ((event.clientY - rect.top) / rect.height) * 8 - 0.45;
-  drag.ghost.setAttribute("x", String(x));
-  drag.ghost.setAttribute("y", String(y));
-}
-
-function moveDrag(event) {
-  if (!drag) return;
-  drag.moved = true;
-  positionGhost(event);
-}
-
-function endDrag(event) {
-  if (!drag) return;
-  const { from, board } = drag;
-  const target = squareAtPoint(board, event.clientX, event.clientY);
-  cleanupDrag();
-  if (!drag?.moved && target === from) {
-    // 没真的拖走：让 click 照常处理（盖章 / 提示）
-    return;
-  }
-  if (target !== null && target !== from) {
-    movePiece(from, target);
-  }
-}
-
-function cancelDrag() {
-  cleanupDrag();
-}
-
-function cleanupDrag() {
-  if (!drag) return;
-  drag.ghost.remove();
-  drag.board.querySelector(`[data-at="${drag.from}"]`)?.classList.remove("drag-source");
-  drag = null;
-  clickSuppressedUntil = Date.now() + 250;
-}
-
-function movePiece(from, to) {
-  const next = moveSquare(state.placement, state.flipped ? 63 - from : from, state.flipped ? 63 - to : to);
-  if (next === state.placement) {
-    clickSuppressedUntil = 0;
-    return;
-  }
+/** 拖拽的结果：把棋子从一格挪到另一格。屏幕下标要先映射回真实摆位的下标
+ *  （翻转时两者相反）。 */
+function movePieceTo(screenIndex, to) {
+  const from = state.flipped ? 63 - screenIndex : screenIndex;
+  const target = state.flipped ? 63 - to : to;
+  const next = moveSquare(state.placement, from, target);
+  if (next === state.placement) return;
   notice = null;
   state = { ...state, placement: next, edited: true };
   render();

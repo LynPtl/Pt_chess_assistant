@@ -281,6 +281,10 @@ node scripts/browser-check.mjs "http://127.0.0.1:8787/?fixtures=1"
 10 张图逐张跑**生产那条识别路径**，与 `test/fixtures/expected.json` 比对。
 （其中 `lichess-user-1816.png` 是一张真机截图，也带着"上一步高亮"，用来守走子方推断。）
 
+交互层还有一条回归：`node scripts/verify-interactions.mjs`。它用**真实鼠标事件**
+点调色板、点格子、右键擦除、拖动换位，所以能抓到"重构把某个处理函数删了、页面静默失效"
+这类单测覆盖不到的问题（真的抓到过一次）。
+
 `scripts/browser-check.mjs` 是个无头 Chrome 检查器（走 DevTools 协议，
 不依赖 Playwright）：等页面自己的完成信号再取结果，因为 `chrome --dump-dom`
 在 load 时就返回，等不到 wasm 异步识别。
