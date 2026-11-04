@@ -210,14 +210,9 @@ node scripts/verify-static.mjs http://127.0.0.1:3000/
 两点差异要知道：
 
 - `?fixtures=1` / `?selftest=` 在静态版里用不了 —— 它们读的是 Node 服务的 `/fixtures/*`
-- 静态版没有引擎（Maia / Stockfish 都是本地进程），所以"分析"这一步交给 lichess 链接
-- **浏览器内引擎是实验性的、暂未接入**：`src/engine.mjs`（UCI 协议 + 评分 + SAN 转换，
-  有单元测试）和 `npm run sync` 同步的 `public/engine/` 都在，`stockfish-19-lite-single`
-  （1.8MB，无 NNUE）在干净页面上确实能跑出评分与主变；但**在识别 + 编辑过棋盘之后再启动
-  Worker，它会在搜索中途抛一个拿不到细节的 `Uncaught [object Object]`**。
-  没弄清根因之前不做成按钮 —— 忽好忽坏比没有更糟。要接回来需要先解决这个稳定性问题
-  （可能是 Worker 内 wasm 与识别用的 onnxruntime wasm 共存时的资源问题），
-  然后再往上做"点主变继续走棋"那种 lichess 式交互。
+- 静态版**没有引擎**（Maia / Stockfish 都是本地进程），分析这一步交给
+  「**在 lichess 分析**」按钮：它把当前 FEN 拼进 `lichess.org/analysis/standard/...` 打开。
+  本地版也给了同一个按钮，想快速对比时可以少复制一次
 
 ## 开发与测试
 

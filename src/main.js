@@ -242,6 +242,7 @@ function renderResult() {
 
       ${actionsRow({
         staticMode,
+        // fen 现在两种形态都要传：本地版也给了 lichess 入口
         fen,
         configured: health.configured,
         blocked: verdict.blocked,

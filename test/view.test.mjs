@@ -140,37 +140,3 @@ test("statusStrip：静态模式不渲染本地服务状态", async () => {
   const { statusStrip } = await import("../src/view.mjs");
   assert.equal(statusStrip({ configured: true, reason: "" }, { staticMode: true }), "");
 });
-
-test("analysisPanel：没分析过时给按钮和诚实说明", async () => {
-  const { analysisPanel } = await import("../src/view.mjs");
-  const html = analysisPanel({ analysis: { running: false, lines: [] }, fen: "8/8/8/8/8/8/8/K6k w - - 0 1" });
-  assert.match(html, /data-action="analyse"/);
-  assert.match(html, /lite/, "必须写明是 lite 版");
-  assert.match(html, /弱于本地/, "必须写明弱于本地 Stockfish");
-});
-
-test("analysisPanel：有结果时列出评分和主变", async () => {
-  const { analysisPanel } = await import("../src/view.mjs");
-  const fen = "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1";
-  const html = analysisPanel({
-    analysis: {
-      running: true,
-      lines: [
-        { multipv: 1, depth: 12, cp: 42, mate: null, pv: ["f3g5", "d7d5"] },
-        { multipv: 2, depth: 12, cp: -10, mate: null, pv: ["b1c3"] },
-      ],
-    },
-    fen,
-  });
-  assert.match(html, /\+0\.42/);
-  assert.match(html, /-0\.10/);
-  assert.match(html, /Ng5/);
-  assert.match(html, /data-action="stop"/);
-  assert.match(html, /深度 ?12/);
-});
-
-test("analysisPanel：出错时把原因显示出来", async () => {
-  const { analysisPanel } = await import("../src/view.mjs");
-  const html = analysisPanel({ analysis: { running: false, lines: [], error: "引擎加载失败" }, fen: null });
-  assert.match(html, /引擎加载失败/);
-});
