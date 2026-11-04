@@ -7,6 +7,8 @@ export const DEFAULT_CONFIG = {
   port: 8787,
   pgnTempDir: "",
   logPath: "logs/recognitions.jsonl",
+  // 日志超过这个大小就轮转成 .1（只留一代）
+  logMaxBytes: 2 * 1024 * 1024,
 };
 
 /** Resolve a possibly-relative config path against the config file's own
@@ -51,6 +53,10 @@ export function loadConfig(configPath = "config.json") {
       typeof merged.pgnTempDir === "string" && merged.pgnTempDir.trim() !== ""
         ? toAbsolute(merged.pgnTempDir, baseDir)
         : join(tmpdir(), "mychess-paste"),
+    logMaxBytes:
+      typeof merged.logMaxBytes === "number" && merged.logMaxBytes > 0
+        ? merged.logMaxBytes
+        : DEFAULT_CONFIG.logMaxBytes,
     logPath: toAbsolute(
       typeof merged.logPath === "string" && merged.logPath.trim() !== ""
         ? merged.logPath

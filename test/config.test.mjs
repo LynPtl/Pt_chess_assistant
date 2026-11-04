@@ -64,3 +64,14 @@ test("enCroissantPath 里出现换行/制表符时抛出可读错误", () => {
     (err) => err instanceof Error && /正斜杠|反斜杠/.test(err.message),
   );
 });
+
+test("logMaxBytes 能被读到，非法值回落到默认", () => {
+  const withValue = tempConfig(JSON.stringify({ logMaxBytes: 4096 }));
+  assert.equal(loadConfig(withValue).logMaxBytes, 4096);
+
+  const bad = tempConfig(JSON.stringify({ logMaxBytes: -5 }));
+  assert.equal(loadConfig(bad).logMaxBytes, DEFAULT_CONFIG.logMaxBytes);
+
+  const missing = tempConfig(JSON.stringify({}));
+  assert.equal(loadConfig(missing).logMaxBytes, DEFAULT_CONFIG.logMaxBytes);
+});

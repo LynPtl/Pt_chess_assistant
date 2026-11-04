@@ -81,6 +81,7 @@ C:\Program Files\En Croissant\en-croissant.exe
 | `port` | 本地服务端口，默认 8787，只监听 `127.0.0.1` |
 | `pgnTempDir` | 临时 PGN 目录；留空则用系统临时目录下的 `mychess-paste` |
 | `logPath` | 识别日志，相对路径相对于 `config.json` 所在目录 |
+| `logMaxBytes` | 日志超过这个大小就轮转成 `.1`（只留一代），默认 2 MiB |
 
 `config.json` 与 `logs/` 都不进 git。
 

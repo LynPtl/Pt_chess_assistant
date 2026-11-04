@@ -317,3 +317,36 @@ test("closeFirst：必须等旧进程真的关掉再启动（否则会杀掉刚�
 
   assert.deepEqual(order, ["kill", "launch"]);
 });
+
+test("日志超过上限时轮转，不会无限长大", async (t) => {
+  const ws = makeWorkspace();
+  // 预置一个超过阈值的旧日志
+  writeFileSync(ws.logPath, "x".repeat(2000) + "\n");
+  const base = await serve(t, {
+    enCroissantPath: ws.exe,
+    pgnTempDir: ws.pgnTempDir,
+    logPath: ws.logPath,
+    logMaxBytes: 1024,
+  }, () => {});
+
+  await post(base, { fen: FEN });
+
+  const lines = readFileSync(ws.logPath, "utf8").trim().split("\n");
+  assert.equal(lines.length, 1, "轮转后只应该有新的那一行");
+  assert.equal(lines[0].includes(FEN), true);
+});
+
+test("请求体超过 8KB 时返回 413，并且连接还没被掐断", async (t) => {
+  const ws = makeWorkspace();
+  const base = await serve(t, { enCroissantPath: ws.exe, pgnTempDir: ws.pgnTempDir, logPath: ws.logPath }, () => {});
+
+  const res = await fetch(`${base}/handoff`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ fen: FEN, pad: "x".repeat(9000) }),
+  });
+
+  assert.equal(res.status, 413);
+  const body = await res.json();
+  assert.equal(body.ok, false);
+});

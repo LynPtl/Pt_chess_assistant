@@ -1,4 +1,4 @@
-import { appendFileSync, createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, createReadStream, existsSync, mkdirSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
 import { describeListenError, killRunning, launchProcess, openInBrowser } from "./spawn-helpers.mjs";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
@@ -78,16 +78,23 @@ function readBody(req) {
   return new Promise((resolveBody, rejectBody) => {
     const chunks = [];
     let size = 0;
+    let rejected = false;
     req.on("data", (chunk) => {
+      if (rejected) return;
       size += chunk.length;
       if (size > MAX_BODY_BYTES) {
+        rejected = true;
+        // 先别 destroy：把剩下的数据读掉丢掉，这样 413 能真的送到客户端，
+        // 而不是被一个断掉的 socket 变成一个看不出原因的报错。
+        req.resume();
         rejectBody(Object.assign(new Error("请求体过大"), { status: 413 }));
-        req.destroy();
         return;
       }
       chunks.push(chunk);
     });
-    req.on("end", () => resolveBody(Buffer.concat(chunks).toString("utf8")));
+    req.on("end", () => {
+      if (!rejected) resolveBody(Buffer.concat(chunks).toString("utf8"));
+    });
     req.on("error", rejectBody);
   });
 }
@@ -98,9 +105,16 @@ function defaultLaunch(config) {
   };
 }
 
+const DEFAULT_LOG_MAX_BYTES = 2 * 1024 * 1024;
+
 function appendLog(config, entry) {
   try {
     mkdirSync(dirname(config.logPath), { recursive: true });
+    const limit = config.logMaxBytes ?? DEFAULT_LOG_MAX_BYTES;
+    if (existsSync(config.logPath) && statSync(config.logPath).size > limit) {
+      // 只留一份上一代日志：够定位问题，又不会越滚越大。
+      renameSync(config.logPath, `${config.logPath}.1`);
+    }
     appendFileSync(config.logPath, `${JSON.stringify(entry)}\n`, "utf8");
   } catch {
     /* 日志写不进去不该把已经成功的送入说成失败 */
